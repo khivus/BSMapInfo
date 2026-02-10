@@ -6,11 +6,11 @@ from info_schema_version_handler import info_schema_version_handler
 from difficulty_schema_version_handler import difficulty_schema_version_handler
 
 
-VERSION = "0.0.1"
+VERSION = "0.0.2"
 
 
 def parse_file(filename: str):
-    with open(filename, 'r') as file:
+    with open(filename, 'r', encoding="utf-8") as file:
         data_json = json.load(file)
     
     return data_json
@@ -35,20 +35,22 @@ def notes_density(notes : list, bin_size : int, song_duration: float) -> dict: #
     return dict(zip([f"{int(edges[i])}-{int(edges[i+1])}" for i in range(len(edges)-1)], counts / bin_size))
 
 
-def get_short_stats(notes: dict):
+def get_short_stats(notes: dict, bin_size: int):
     values = np.array(list(notes.values()))
     non_zero = values[values != 0]
+    zeros = values[values == 0]
 
     max_val = np.max(non_zero)
     min_val = np.min(non_zero)
     mean_val = float(np.mean(non_zero))
+    idle = len(zeros) * bin_size
 
-    return max_val, min_val, mean_val
+    return max_val, min_val, mean_val, idle
 
 
 if __name__ == "__main__":
     # settings handled
-    bin_size = 3
+    bin_size = 2
 
     program_dir = os.getcwd()
     parent_dir = os.path.dirname(program_dir)
@@ -73,11 +75,16 @@ if __name__ == "__main__":
             difficulty = difficulty_schema_version_handler(difficulty_json)
             difficulty.difficulty = map_difficulty
             difficulty.filename = map.difficulties[map_difficulty]
+
+            if not difficulty.notes_in_beats:
+                continue
+
             difficulty.notes_in_seconds = beats_to_seconds(notes_in_beats=difficulty.notes_in_beats, bpm=map.bpm)
             difficulty.notes_density = notes_density(notes=difficulty.notes_in_seconds, bin_size=bin_size, song_duration=map.song_duration)
-            difficulty.max_nps, difficulty.min_nps, difficulty.mean_nps = get_short_stats(notes=difficulty.notes_density)
+            difficulty.max_nps, difficulty.min_nps, difficulty.mean_nps, idle = get_short_stats(notes=difficulty.notes_density, bin_size=bin_size)
 
             print(f"\n'{map.song_title}' difficulty {difficulty.difficulty}:")
             # for key in difficulty.notes_density.keys():
             #     print(f"{key}: {difficulty.notes_density[key]:.2f}")
             print(f"NPS: max = {difficulty.max_nps:.2f}, min = {difficulty.min_nps:.2f}, mean = {difficulty.mean_nps:.2f}")
+            print(f"Idle time: {idle} sec")
