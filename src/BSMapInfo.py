@@ -1,90 +1,61 @@
 import json
 import os
 import numpy as np
+from pathlib import Path
 
 from info_schema_version_handler import info_schema_version_handler
-from difficulty_schema_version_handler import difficulty_schema_version_handler
+from level_schema_version_handler import level_schema_version_handler
 
 
-VERSION = "0.0.2"
+VERSION = "0.0.3"
+AUTHOR = "Khivus"
+APP_NAME = "BSMapInfo"
 
 
-def parse_file(filename: str):
-    with open(filename, 'r', encoding="utf-8") as file:
-        data_json = json.load(file)
+# settings handled
+bin_size = 3
+min_idle_time = 3
+stacked_counted = True
+different_color_counted = True
+
+# settings managment
+app_dir = Path(os.path.expanduser("~")) / "AppData" / "Roaming" / APP_NAME
+app_dir.mkdir(parents=True, exist_ok=True)
+settings_file = app_dir / "settings.json"
+
+# directory managment
+target_dir = "D:\Git\BSMapInfo Test Maps"
+os.chdir(target_dir)
+
+for item in os.listdir():
     
-    return data_json
+    item_path = os.path.join(os.getcwd(), item)
+    if not os.path.isdir(item_path):
+        continue
 
+    info_file_path = os.path.join(item_path, "Info.dat")
+    map = info_schema_version_handler(filepath=info_file_path)
 
-def beats_to_seconds(notes_in_beats: list, bpm: float):
-    notes_in_seconds = []
-    for note in notes_in_beats:
-        notes_in_seconds.append((note * 60) / bpm)
-    
-    return notes_in_seconds
+    for map_level in map.levels:
 
+        level_file_path = os.path.join(item_path, map_level["filename"])
 
-def notes_density(notes : list, bin_size : int, song_duration: float) -> dict: # Returns list of counted notes in list
-    if not song_duration:
-        stop = notes[len(notes) - 1] + bin_size
-    else: 
-        stop = song_duration
+        level = level_schema_version_handler(characteristic=map_level["characteristic"], difficulty=map_level["difficulty"], filepath=level_file_path)
 
-    bins = np.arange(0, stop, bin_size)
-    counts, edges = np.histogram(notes, bins=bins)
-    return dict(zip([f"{int(edges[i])}-{int(edges[i+1])}" for i in range(len(edges)-1)], counts / bin_size))
-
-
-def get_short_stats(notes: dict, bin_size: int):
-    values = np.array(list(notes.values()))
-    non_zero = values[values != 0]
-    zeros = values[values == 0]
-
-    max_val = np.max(non_zero)
-    min_val = np.min(non_zero)
-    mean_val = float(np.mean(non_zero))
-    idle = len(zeros) * bin_size
-
-    return max_val, min_val, mean_val, idle
-
-
-if __name__ == "__main__":
-    # settings handled
-    bin_size = 2
-
-    program_dir = os.getcwd()
-    parent_dir = os.path.dirname(program_dir)
-    os.chdir(parent_dir)
-    target_dir = "BSMapInfo Test Maps"
-    os.chdir(target_dir)
-    
-    for item in os.listdir():
-        
-        item_path = os.path.join(os.getcwd(), item)
-        if not os.path.isdir(item_path):
+        if not level.notes_in_beats:
+            print(f"\nCan't find notes in map {map.song_title} ({level.characteristic} {level.difficulty})!")
             continue
+            # raise Exception(f"Notes in map {map.song_title} ({level.characteristic} {level.difficulty}) not found!")
 
-        info_file_path = os.path.join(item_path, "Info.dat")
-        info_json = parse_file(info_file_path)
-        map = info_schema_version_handler(info_json)
+        level.beats_to_seconds(bpm=map.bpm)
+        level.count_notes_density(bin_size=bin_size, stacked_counted=stacked_counted, different_color_counted=different_color_counted)
+        level.count_short_stats(bin_size=bin_size, min_idle_time=min_idle_time)
 
-        for map_difficulty in map.difficulties.keys():
-            difficulty_file_path = os.path.join(item_path, map.difficulties[map_difficulty])
-            difficulty_json = parse_file(difficulty_file_path)
-
-            difficulty = difficulty_schema_version_handler(difficulty_json)
-            difficulty.difficulty = map_difficulty
-            difficulty.filename = map.difficulties[map_difficulty]
-
-            if not difficulty.notes_in_beats:
-                continue
-
-            difficulty.notes_in_seconds = beats_to_seconds(notes_in_beats=difficulty.notes_in_beats, bpm=map.bpm)
-            difficulty.notes_density = notes_density(notes=difficulty.notes_in_seconds, bin_size=bin_size, song_duration=map.song_duration)
-            difficulty.max_nps, difficulty.min_nps, difficulty.mean_nps, idle = get_short_stats(notes=difficulty.notes_density, bin_size=bin_size)
-
-            print(f"\n'{map.song_title}' difficulty {difficulty.difficulty}:")
-            # for key in difficulty.notes_density.keys():
-            #     print(f"{key}: {difficulty.notes_density[key]:.2f}")
-            print(f"NPS: max = {difficulty.max_nps:.2f}, min = {difficulty.min_nps:.2f}, mean = {difficulty.mean_nps:.2f}")
-            print(f"Idle time: {idle} sec")
+        print(f"\n{map.song_title}: {level.characteristic} {level.difficulty}")
+        print(f"NPS: max = {level.max_nps:.2f}, min = {level.min_nps:.2f}, mean = {level.mean_nps:.2f}")
+        print(f"Song duration: {map.song_duration if map.song_duration else level.notes_density[len(level.notes_density) - 1]['end']} sec, idle time: {level.sum_idle} sec")
+        # print(f"Idle time distribution:")
+        # for countdown in idle_time:
+        #     print(f"{countdown['start']}-{countdown['end']}: {countdown['duration']}")
+        # for countdown in level.notes_density:
+        #     print(f"{countdown['start']}: {countdown['nps']:.2f}")

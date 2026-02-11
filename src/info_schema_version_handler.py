@@ -1,3 +1,6 @@
+import json
+
+
 class info_schema_version_handler():
 
     info_major_version: int
@@ -5,12 +8,22 @@ class info_schema_version_handler():
     song_duration: float
     bpm: float
     added_date: str
-    difficulties: dict
+    levels: list
+
+    characteristics = [
+        "Standard",
+        "NoArrows",
+        "OneSaber",
+        "360Degree",
+        "90Degree"
+    ]
 
 
-    def __init__(self, info_json):
-        self.info_json = info_json
-        
+    def __init__(self, filepath: str):
+
+        with open(filepath, 'r', encoding="utf-8") as file:
+            self.info_json = json.load(file)
+
         try:
             self.info_major_version = int(self.info_json["version"].split('.')[0])
         except:
@@ -29,12 +42,19 @@ class info_schema_version_handler():
         self.song_duration = 0 # don't nedeed really
         self.bpm = self.info_json["_beatsPerMinute"]
 
-        difficulties = {}
+        levels = []
         for characteristic in self.info_json["_difficultyBeatmapSets"]:
-            for difficulty in characteristic["_difficultyBeatmaps"]:
-                difficulties[difficulty["_difficulty"]] = difficulty["_beatmapFilename"]
+            if characteristic["_beatmapCharacteristicName"] not in self.characteristics:
+                continue
+
+            for level in characteristic["_difficultyBeatmaps"]:
+                levels.append({
+                    "characteristic" : characteristic["_beatmapCharacteristicName"],
+                    "difficulty" : level["_difficulty"],
+                    "filename" : level["_beatmapFilename"]
+                })
         
-        self.difficulties = difficulties
+        self.levels = levels
 
 
     def v4_handler(self):
@@ -42,8 +62,15 @@ class info_schema_version_handler():
         self.song_duration = self.info_json["audio"]["songDuration"]
         self.bpm = self.info_json["audio"]["bpm"]
 
-        difficulties = {}
-        for difficulty in self.info_json["difficultyBeatmaps"]:
-            difficulties[difficulty["difficulty"]] = difficulty["beatmapDataFilename"]
+        levels = []
+        for level in self.info_json["difficultyBeatmaps"]:
+            if level["characteristic"] not in self.characteristics:
+                continue
+
+            levels.append({
+                "characteristic" : level["characteristic"],
+                "difficulty" : level["difficulty"],
+                "filename" : level["beatmapDataFilename"]
+            })
         
-        self.difficulties = difficulties
+        self.levels = levels
