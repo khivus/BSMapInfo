@@ -1,7 +1,7 @@
 import json
 import numpy as np
 
-class level_schema_version_handler():
+class LevelSchemaVersionHandler():
     
     level_major_version: int
     characteristic: str

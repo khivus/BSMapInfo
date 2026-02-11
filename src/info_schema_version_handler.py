@@ -1,7 +1,7 @@
 import json
 
 
-class info_schema_version_handler():
+class InfoSchemaVersionHandler():
 
     info_major_version: int
     song_title: str
