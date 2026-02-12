@@ -1,9 +1,11 @@
 import json
+import os
 
 
 class InfoSchemaVersionHandler():
 
     info_major_version: int
+    map_path: str
     song_title: str
     song_duration: float
     bpm: float
@@ -19,9 +21,11 @@ class InfoSchemaVersionHandler():
     ]
 
 
-    def __init__(self, filepath: str):
+    def __init__(self, map_path: str):
 
-        with open(filepath, 'r', encoding="utf-8") as file:
+        self.map_path = map_path
+        info_file_path = os.path.join(self.map_path, "Info.dat")
+        with open(info_file_path, 'r', encoding="utf-8") as file:
             self.info_json = json.load(file)
 
         try:
@@ -35,6 +39,10 @@ class InfoSchemaVersionHandler():
             self.v2_handler()
         else:
             self.v4_handler()
+
+        for index, level in enumerate(self.levels):
+            if level["difficulty"] == "ExpertPlus":
+                self.levels[index]["difficulty"] = "Expert+"
             
 
     def v2_handler(self):

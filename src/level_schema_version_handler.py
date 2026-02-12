@@ -1,5 +1,7 @@
 import json
 import numpy as np
+import customtkinter as ctk
+
 
 class LevelSchemaVersionHandler():
     
@@ -99,10 +101,13 @@ class LevelSchemaVersionHandler():
         bins = np.arange(0, stop, bin_size)
         counts, edges = np.histogram(raw_notes, bins=bins)
         
+        self.counts = counts
+        self.edges = edges
+        
         density = []
         for i in range(len(edges) - 1):
             density.append({"start" : int(edges[i]), "end" : int(edges[i+1]), "nps" : counts[i] / bin_size})
-        
+
         self.notes_density = density
 
 

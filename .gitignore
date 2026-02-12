@@ -1,3 +1,6 @@
 *.dat
 *.json
 src/__pycache__
+build/
+dist/
+*.spec
