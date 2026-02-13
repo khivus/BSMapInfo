@@ -2,23 +2,26 @@ import json
 import os
 
 
-class InfoSchemaVersionHandler():
+class InfoSchemaVersionHandler:
 
     info_major_version: int
     map_path: str
     song_title: str
+    song_autor: str
+    level_autor: str
     song_duration: float
     bpm: float
-    added_date: str
+    cover_image_filename: str
     levels: list
 
-    characteristics = [
-        "Standard",
-        "NoArrows",
-        "OneSaber",
-        "360Degree",
-        "90Degree"
-    ]
+    characteristics = {
+        "Standard" : "St",
+        "NoArrows" : "NA",
+        "OneSaber" : "OS",
+        "Lawless" : "Ll",
+        "90Degree" : "90D",
+        "360Degree" : "360D"
+    }
 
 
     def __init__(self, map_path: str):
@@ -33,8 +36,6 @@ class InfoSchemaVersionHandler():
         except:
             self.info_major_version = int(self.info_json["_version"].split('.')[0])
 
-        self.added_date = "addedDate" # need to be handled later
-
         if self.info_major_version == 2:
             self.v2_handler()
         else:
@@ -47,12 +48,15 @@ class InfoSchemaVersionHandler():
 
     def v2_handler(self):
         self.song_title = self.info_json["_songName"]
+        self.song_autor = self.info_json["_songAuthorName"]
+        self.level_autor = self.info_json["_levelAuthorName"]
         self.song_duration = 0 # don't nedeed really
         self.bpm = self.info_json["_beatsPerMinute"]
+        self.cover_image_filename = self.info_json["_coverImageFilename"]
 
         levels = []
         for characteristic in self.info_json["_difficultyBeatmapSets"]:
-            if characteristic["_beatmapCharacteristicName"] not in self.characteristics:
+            if characteristic["_beatmapCharacteristicName"] not in self.characteristics.keys():
                 continue
 
             for level in characteristic["_difficultyBeatmaps"]:
@@ -67,12 +71,15 @@ class InfoSchemaVersionHandler():
 
     def v4_handler(self):
         self.song_title = self.info_json["song"]["title"]
+        self.song_autor = self.info_json["song"]["author"]
+        self.level_autor = "" # Very good development team
         self.song_duration = self.info_json["audio"]["songDuration"]
         self.bpm = self.info_json["audio"]["bpm"]
+        self.cover_image_filename = self.info_json["coverImageFilename"]
 
         levels = []
         for level in self.info_json["difficultyBeatmaps"]:
-            if level["characteristic"] not in self.characteristics:
+            if level["characteristic"] not in self.characteristics.keys():
                 continue
 
             levels.append({

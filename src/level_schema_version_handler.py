@@ -1,9 +1,8 @@
 import json
 import numpy as np
-import customtkinter as ctk
 
 
-class LevelSchemaVersionHandler():
+class LevelSchemaVersionHandler:
     
     level_major_version: int
     characteristic: str
@@ -17,6 +16,7 @@ class LevelSchemaVersionHandler():
     mean_nps: float
     sum_idle: float
     idle_time: list
+    bad_mapper: bool = False
 
 
     def __init__(self, characteristic: str, difficulty: str, filepath: str):
@@ -42,9 +42,12 @@ class LevelSchemaVersionHandler():
     def v2_handler(self):
         notes = []
         for note in self.level_json["_notes"]:
-            if note["_type"] == 3: # bomb
-                continue
-            notes.append({"beat" : note["_time"], "color" : note["_type"]})
+            try:
+                if note["_type"] == 3: # bomb
+                    continue
+                notes.append({"beat" : note["_time"], "color" : note["_type"]})
+            except:
+                self.bad_mapper = True
 
         self.notes_in_beats = notes
 
@@ -52,7 +55,10 @@ class LevelSchemaVersionHandler():
     def v3_handler(self):
         notes = []
         for note in self.level_json["colorNotes"]:
-            notes.append({"beat" : note["b"], "color" : note["c"]})
+            try:
+                notes.append({"beat" : note["b"], "color" : note["c"]})
+            except:
+                self.bad_mapper = True
         
         self.notes_in_beats = notes
 
@@ -60,7 +66,10 @@ class LevelSchemaVersionHandler():
     def v4_handler(self):
         notes = []
         for note in self.level_json["colorNotes"]:
-            notes.append({"beat" : note["b"], "color" : self.level_json["colorNotesData"][note["i"]]["c"]})
+            try:
+                notes.append({"beat" : note["b"], "color" : self.level_json["colorNotesData"][note["i"]]["c"]})
+            except:
+                self.bad_mapper = True
 
         self.notes_in_beats = notes
 

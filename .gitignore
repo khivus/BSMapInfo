@@ -1,6 +1,11 @@
-*.dat
-*.json
-src/__pycache__
+# Folders
 build/
 dist/
+resources/
+
+src/__pycache__
+
+# File types
+*.dat
+*.json
 *.spec
