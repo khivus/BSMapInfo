@@ -1,4 +1,5 @@
 import os
+import sys
 import customtkinter as ctk
 import matplotlib.pyplot as plt
 
@@ -10,13 +11,14 @@ from info_schema_version_handler import InfoSchemaVersionHandler
 from level_schema_version_handler import LevelSchemaVersionHandler
 
 
-VERSION = "0.2.0"
+VERSION = "1.0.0"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
 
-# python -m PyInstaller --w --onefile --icon="resources/icon.ico" --add-data "resources;resources" src/BSMapInfo.py
-# TODO: Loading screen?
+
+# python -m PyInstaller --windowed --onefile --icon="icon.ico" src/BSMapInfo.py
+
 
 class BSMapInfoApp(ctk.CTk):
     
@@ -25,11 +27,11 @@ class BSMapInfoApp(ctk.CTk):
 
         ctk.set_appearance_mode("dark")
         self.title(FULL_APP_NAME)
-        self.geometry("850x500")
-        self.minsize(850, 500)
+        self.iconbitmap(sys.executable)
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.set_state()
+        self.set_geometry()
         self.build_ui()
 
         if self.settings.target_dir:
@@ -51,6 +53,18 @@ class BSMapInfoApp(ctk.CTk):
         self.settings = SettingsHandler(APP_NAME)
 
 
+    def set_geometry(self):
+        size, x, y = self.settings.geometry.split('+')
+        width, height = size.split('x')
+
+        if x == "-1" or y == "-1":
+            x = (self.winfo_screenwidth() - int(width)) // 2
+            y = (self.winfo_screenheight() - int(height)) // 2
+
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        self.minsize(850, 500)
+
+
     def build_ui(self):
 
         # Frames
@@ -68,7 +82,6 @@ class BSMapInfoApp(ctk.CTk):
         # Sidebar frame
         self.sidebar = ctk.CTkFrame(self.main_frame, width=200)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
-        # self.sidebar.grid_propagate(False)
 
         # Search frame
         self.search_frame = ctk.CTkFrame(self.sidebar, width=200, height=38)
@@ -129,7 +142,7 @@ class BSMapInfoApp(ctk.CTk):
         self.change_dir_btn.pack(side="left", padx=5)
 
         self.about_btn = ctk.CTkButton(self.topbar, text="About", width=50, command=self.show_about)
-        self.about_btn.pack(side="right", padx=5)
+        self.about_btn.pack(side="left", padx=5)
 
         # Search items
         self.search_entry = ctk.CTkEntry(self.search_frame , textvariable=self.search_var)
@@ -138,6 +151,7 @@ class BSMapInfoApp(ctk.CTk):
 
 
     def on_closing(self):
+        self.settings.geometry = self.geometry()
         self.settings.save_settings()
         plt.close('all')
         app.quit()
@@ -153,10 +167,27 @@ class BSMapInfoApp(ctk.CTk):
         )
 
         if not selected_dir:
+            no_dir_label = ctk.CTkLabel(self.level_info_frame, text="Please select custom maps folder using \"Change directory\" button.")
+            no_dir_label.pack(padx=self.padding * 2, anchor="w")
+            self.update()
+            return
+
+        if selected_dir == self.settings.target_dir:
             return
 
         self.settings.target_dir = selected_dir
-        self.load_map_list()
+
+        self.clear_frame(self.maps_list_frame)
+        self.clear_frame(self.levels_frame)
+        self.clear_frame(self.level_info_frame)
+        self.last_active_sidebar_btn_index = -1
+        self.last_active_levels_btn_index = -1
+        self.maps = []
+
+        self.progress_bar_label = ctk.CTkLabel(self.level_info_frame, text="Loading maps...")
+        self.progress_bar = ctk.CTkProgressBar(self.level_info_frame)
+
+        self.load_map_list(True)
 
 
     def validate_only_digits(self, event):
@@ -171,14 +202,6 @@ class BSMapInfoApp(ctk.CTk):
             return
 
         return "break"
-
-
-    # def resource_path(self, relative_path):
-    #     if getattr(sys, 'frozen', False):
-    #         base_path = sys._MEIPASS
-    #     else:
-    #         base_path = os.path.abspath(".")
-    #     return os.path.join(base_path, relative_path)
 
 
     def toggle(self, var: ctk.BooleanVar, btn: ctk.CTkButton):
@@ -223,7 +246,24 @@ class BSMapInfoApp(ctk.CTk):
 
 
     def show_about(self):
-        pass
+        self.about_window = ctk.CTkToplevel(self)
+        self.about_window.geometry("190x108")
+        self.about_window.resizable(False, False)
+        self.about_window.title(f"About {APP_NAME}")
+        
+        self.about_window.transient(self)
+        self.about_window.grab_set()
+
+        self.about_window.update_idletasks()
+        x = self.winfo_x() + ((self.winfo_width() - self.about_window.winfo_width()) // 2)
+        y = self.winfo_y() + ((self.winfo_height() - self.about_window.winfo_height()) // 2)
+        self.about_window.geometry(f"+{x}+{y}")
+
+        label = ctk.CTkLabel(self.about_window, text=f"{FULL_APP_NAME}\nVersion {VERSION}\nBy: {AUTHOR}", justify="center")
+        label.pack(expand=True, pady=self.padding)
+
+        close_btn = ctk.CTkButton(self.about_window, text="Ok", command=self.about_window.destroy)
+        close_btn.pack(pady=self.padding)
 
 
     def filter_sidebar(self, *args):
@@ -237,11 +277,21 @@ class BSMapInfoApp(ctk.CTk):
         self.maps_list_frame._parent_canvas.yview_moveto(0)
 
 
-    def load_map_list(self):
+    def load_map_list(self, progress_bar_enabled = False):
+
+        if progress_bar_enabled:
+            self.progress_bar_label.pack(padx=self.padding * 2, pady=self.padding, anchor="w")
+            self.progress_bar.pack(padx=self.padding * 2, fill="x")
+            self.progress_bar.set(0)
+            self.progress_bar.start()
+            self.update()
 
         os.chdir(self.settings.target_dir)
+        list_dir = os.listdir()
+        list_dir_len = len(list_dir)
+        update_ticks = int(list_dir_len / 5)
 
-        for index, item in enumerate(os.listdir()):
+        for index, item in enumerate(list_dir):
             
             dir_path = os.path.join(os.getcwd(), item)
             if not os.path.isdir(dir_path):
@@ -263,35 +313,25 @@ class BSMapInfoApp(ctk.CTk):
             map_info = f"{map.song_title}\n"
             map_info += f"By: {map.song_autor}\n" if map.song_autor else ""
             map_info += f"Map by: {map.level_autor}" if map.level_autor else ""
-            # last_characteristic = ""
-
-            # for j, level in enumerate(map.levels):
-            #     if j > 4:
-            #         map_info += "..."
-            #         break
-            #     elif j != 0 and last_characteristic == level['characteristic']:
-            #         map_info += ", "
-            #     elif last_characteristic != level['characteristic']:
-            #         if j != 0:
-            #             map_info += "; "
-            #         map_info += f"{map.characteristics[level['characteristic']]}: "
-
-            #     map_info += f"{level['difficulty']}"
-            #     last_characteristic = level['characteristic']
 
             map_info_label = ctk.CTkLabel(map_btn_frame, text=map_info, wraplength=148, justify="left")
             map_info_label.grid(row=0, column=1, pady=self.padding, sticky="nw")
 
-            # level_icon_path = self.resource_path("resources\\standart.svg")
-            # orig_level_icon = Image.open(level_icon_path)
-            # level_icon = ctk.CTkImage(light_image=orig_level_icon, size=(10, 10))
-
-            # level_icon_label = ctk.CTkLabel(map_btn_frame, image=level_icon, text="")
-            # level_icon_label.grid(row=1, column=1, sticky="nw")
-
             self.bind_all_children(map_btn_frame, index)
 
             self.maps.append({"map" : map, "btn" : map_btn_frame})
+
+            if progress_bar_enabled and not index % update_ticks:
+                self.progress_bar.set(index / list_dir_len)
+                self.update()
+
+        if progress_bar_enabled:
+            self.progress_bar.stop()
+            self.progress_bar_label.pack_forget()
+            self.progress_bar.pack_forget()
+
+        start_info_label = ctk.CTkLabel(self.level_info_frame, text="Select map on the left sidebar to see info about it.")
+        start_info_label.pack(padx=self.padding * 2, anchor="w")
 
 
     def bind_all_children(self, parent, index):
@@ -329,8 +369,6 @@ class BSMapInfoApp(ctk.CTk):
         self.last_active_levels_btn_index = -1
 
         map: InfoSchemaVersionHandler = self.maps[index]["map"]
-        self.map_name = ctk.CTkLabel(self.level_info_frame, text=map.song_title)
-        self.map_name.grid(row=0, column=0, sticky="w", padx=self.padding)
 
         self.map_levels = []
         i = 0
@@ -339,10 +377,9 @@ class BSMapInfoApp(ctk.CTk):
             lvl_btn = ctk.CTkButton(
                 self.levels_frame, 
                 text=f"{map.characteristics[level['characteristic']]} {level['difficulty']}",
-                command=lambda li=i  : self.load_level(map_index=index, level_index=li),
-                width=60
+                command=lambda li=i  : self.load_level(map_index=index, level_index=li)
             )
-            lvl_btn.grid(row=i // 8, column=i % 8, padx=self.padding, pady=self.padding, sticky="ew")
+            lvl_btn.grid(row=i // 6, column=i % 6, padx=self.padding, pady=self.padding, sticky="ew")
             self.levels_frame.grid_columnconfigure(i, weight=1)
             self.map_levels.append({"level" : level, "btn" : lvl_btn})
 
@@ -351,7 +388,7 @@ class BSMapInfoApp(ctk.CTk):
         self.load_level(map_index=index, level_index=0)
         
 
-    def clear_frame(self, frame: ctk.CTkFrame):
+    def clear_frame(self, frame: ctk.CTkFrame | ctk.CTkScrollableFrame):
         for widget in frame.winfo_children():
             widget.destroy()
 
@@ -368,6 +405,7 @@ class BSMapInfoApp(ctk.CTk):
         level = LevelSchemaVersionHandler(
             characteristic=self.map_levels[level_index]["level"]["characteristic"],
             difficulty=self.map_levels[level_index]["level"]["difficulty"],
+            njs=self.map_levels[level_index]["level"]["njs"],
             filepath=level_file_path)
 
         # Clear last button active
@@ -379,31 +417,32 @@ class BSMapInfoApp(ctk.CTk):
 
         # Set level in label
         self.map_name = ctk.CTkLabel(self.level_info_frame, text=f"{map.song_title}: {level.characteristic} {level.difficulty}")
-        self.map_name.grid(row=0, column=0, sticky="w", padx=self.padding)
+        self.map_name.grid(row=0, column=0, padx=self.padding * 2, sticky="w")
 
         self.last_active_levels_btn_index = level_index
 
         if not level.notes_in_beats:
             error_text = "Can't find notes in map!"
-            self.error_label = ctk.CTkLabel(self.level_info_frame, text=error_text, padx=self.padding)
-            self.error_label.grid(row=1, column=0, sticky="w")
+            self.error_label = ctk.CTkLabel(self.level_info_frame, text=error_text)
+            self.error_label.grid(row=1, column=0, padx=self.padding * 2, sticky="w")
             return
         
+        # Getting level info
         level.beats_to_seconds(bpm=map.bpm)
         level.count_notes_density(bin_size=self.settings.bin_size, stacked_counted=self.settings.stacked_counted.get(), different_color_counted=self.settings.different_color_counted.get())
         level.count_short_stats(bin_size=self.settings.bin_size, min_idle_time=self.settings.min_idle_time)
         
-        # UI thing
-        nps_text = f"NPS: max = {level.max_nps:.2f}, min = {level.min_nps:.2f}, mean = {level.mean_nps:.2f}"
-        self.nps_label = ctk.CTkLabel(self.level_info_frame, text=nps_text, padx=self.padding)
-        self.nps_label.grid(row=1, column=0, sticky="w")
+        # Level info
+        nps_text = f"NPS: avg = {level.mean_nps:.2f}, max = {level.max_nps:.2f}, min = {level.min_nps:.2f}. NJS = {level.njs:.1f}"
+        self.nps_label = ctk.CTkLabel(self.level_info_frame, text=nps_text)
+        self.nps_label.grid(row=1, column=0, padx=self.padding * 2, sticky="w")
 
         duration = self.time_adjust(map.song_duration if map.song_duration else level.notes_density[len(level.notes_density) - 1]['end'])
         idle = self.time_adjust(level.sum_idle)
 
         duration_text = f"Song duration: {duration}, idle time: {idle}"
-        self.duration_label = ctk.CTkLabel(self.level_info_frame, text=duration_text, padx=self.padding)
-        self.duration_label.grid(row=2, column=0, sticky="w")       
+        self.duration_label = ctk.CTkLabel(self.level_info_frame, text=duration_text)
+        self.duration_label.grid(row=2, column=0, padx=self.padding * 2, sticky="w")       
 
         graph_row = 3
         if level.bad_mapper:
@@ -419,15 +458,16 @@ class BSMapInfoApp(ctk.CTk):
         ax = plt.gca()
         original_ticks = ax.get_yticks()
         normalized_ticks = original_ticks / self.settings.bin_size
+        ax.set_ylabel("NPS")
         ax.set_yticks(original_ticks)
         ax.set_yticklabels([f'{tick:.2f}' for tick in normalized_ticks])
         ax.set_ylim(bottom=0)
 
         canvas = FigureCanvasTkAgg(plt.gcf(), master=self.level_info_frame)
-        canvas.draw()
         canvas.get_tk_widget().grid(row=graph_row, column=0, sticky="nwes")
         self.level_info_frame.grid_rowconfigure(graph_row, weight=1)
         self.level_info_frame.grid_columnconfigure(0, weight=1)
+        self.after(100, canvas.draw) # Fix for figure jumping for 1 frame
 
     def time_adjust(self, timve) -> str:
         if timve >= 60:

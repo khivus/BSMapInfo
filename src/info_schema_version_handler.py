@@ -63,6 +63,7 @@ class InfoSchemaVersionHandler:
                 levels.append({
                     "characteristic" : characteristic["_beatmapCharacteristicName"],
                     "difficulty" : level["_difficulty"],
+                    "njs" : level["_noteJumpMovementSpeed"],
                     "filename" : level["_beatmapFilename"]
                 })
         
@@ -85,6 +86,7 @@ class InfoSchemaVersionHandler:
             levels.append({
                 "characteristic" : level["characteristic"],
                 "difficulty" : level["difficulty"],
+                "njs" : level["noteJumpMovementSpeed"],
                 "filename" : level["beatmapDataFilename"]
             })
         

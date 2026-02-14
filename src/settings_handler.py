@@ -7,6 +7,15 @@ from pathlib import Path
 
 class SettingsHandler:
 
+    default_settings = {
+        "target_dir" : "",
+        "geometry" : "850x500+-1+-1",
+        "bin_size" : 3,
+        "min_idle_time" : 3,
+        "stacked_counted" : True,
+        "different_color_counted" : True
+    }
+
     def __init__(self, app_name) -> None:
         local_appdata = os.getenv('LOCALAPPDATA')
         if not local_appdata:
@@ -26,23 +35,27 @@ class SettingsHandler:
             with open(self.settings_file, 'r', encoding='utf-8') as file:
                 settings_json = json.load(file)
 
-            self.target_dir = settings_json["target_dir"]
-            self.bin_size = settings_json["bin_size"]
-            self.min_idle_time = settings_json["min_idle_time"]
-            self.stacked_counted = ctk.BooleanVar(value=settings_json["stacked_counted"])
-            self.different_color_counted = ctk.BooleanVar(value=settings_json["different_color_counted"])
+            self._settings = {**self.default_settings, **settings_json}
 
         else:
-            self.target_dir = ""
-            self.bin_size = 3
-            self.min_idle_time = 3
-            self.stacked_counted = ctk.BooleanVar(value=True)
-            self.different_color_counted = ctk.BooleanVar(value=True)
+            self._settings = self.default_settings.copy()
+            
+        self._apply_settings()
+
+
+    def _apply_settings(self):
+        self.target_dir = self._settings["target_dir"]
+        self.geometry = self._settings["geometry"]
+        self.bin_size = self._settings["bin_size"]
+        self.min_idle_time = self._settings["min_idle_time"]
+        self.stacked_counted = ctk.BooleanVar(value=self._settings["stacked_counted"])
+        self.different_color_counted = ctk.BooleanVar(value=self._settings["different_color_counted"])
 
 
     def save_settings(self):
         settings = {}
         settings["target_dir"] = self.target_dir
+        settings["geometry"] = self.geometry
         settings["bin_size"] = self.bin_size
         settings["min_idle_time"] = self.min_idle_time
         settings["stacked_counted"] = self.stacked_counted.get()

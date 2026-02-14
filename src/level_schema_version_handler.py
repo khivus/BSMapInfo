@@ -7,6 +7,7 @@ class LevelSchemaVersionHandler:
     level_major_version: int
     characteristic: str
     difficulty: str
+    njs: float
     filename: str
     notes_in_beats: list
     notes_in_seconds: list
@@ -19,9 +20,10 @@ class LevelSchemaVersionHandler:
     bad_mapper: bool = False
 
 
-    def __init__(self, characteristic: str, difficulty: str, filepath: str):
+    def __init__(self, characteristic: str, difficulty: str, njs: float, filepath: str):
         self.characteristic = characteristic
         self.difficulty = difficulty
+        self.njs = njs
 
         with open(filepath, 'r', encoding="utf-8") as file:
             self.level_json = json.load(file)
