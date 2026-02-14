@@ -11,7 +11,7 @@ from info_schema_version_handler import InfoSchemaVersionHandler
 from level_schema_version_handler import LevelSchemaVersionHandler
 
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -240,9 +240,8 @@ class BSMapInfoApp(ctk.CTk):
 
         self.settings.bin_size = bin_size
         self.settings.min_idle_time = min_idle_time
-        
         if self.last_active_sidebar_btn_index != -1 and self.last_active_levels_btn_index != -1:
-            self.load_level(map_index=self.last_active_sidebar_btn_index, level_index=self.last_active_levels_btn_index)
+            self.load_level(map_index=self.last_active_sidebar_btn_index, level_index=self.last_active_levels_btn_index, forced=True)
 
 
     def show_about(self):
@@ -393,8 +392,8 @@ class BSMapInfoApp(ctk.CTk):
             widget.destroy()
 
 
-    def load_level(self, map_index: int, level_index: int):
-        if self.last_active_levels_btn_index == level_index:
+    def load_level(self, map_index: int, level_index: int, forced = False):
+        if self.last_active_levels_btn_index == level_index and not forced:
             return
         
         self.clear_frame(self.level_info_frame)
