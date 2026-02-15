@@ -4,11 +4,12 @@ import os
 
 class InfoSchemaVersionHandler:
 
+    id: int
     info_major_version: int
     map_path: str
     song_title: str
     song_autor: str
-    level_autor: str
+    map_autor: str
     song_duration: float
     bpm: float
     cover_image_filename: str
@@ -49,7 +50,7 @@ class InfoSchemaVersionHandler:
     def v2_handler(self):
         self.song_title = self.info_json["_songName"]
         self.song_autor = self.info_json["_songAuthorName"]
-        self.level_autor = self.info_json["_levelAuthorName"]
+        self.map_autor = self.info_json["_levelAuthorName"]
         self.song_duration = 0 # don't nedeed really
         self.bpm = self.info_json["_beatsPerMinute"]
         self.cover_image_filename = self.info_json["_coverImageFilename"]
@@ -73,7 +74,7 @@ class InfoSchemaVersionHandler:
     def v4_handler(self):
         self.song_title = self.info_json["song"]["title"]
         self.song_autor = self.info_json["song"]["author"]
-        self.level_autor = "" # Very good development team
+        self.map_autor = "" # Very good development team
         self.song_duration = self.info_json["audio"]["songDuration"]
         self.bpm = self.info_json["audio"]["bpm"]
         self.cover_image_filename = self.info_json["coverImageFilename"]

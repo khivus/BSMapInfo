@@ -11,7 +11,7 @@ from info_schema_version_handler import InfoSchemaVersionHandler
 from level_schema_version_handler import LevelSchemaVersionHandler
 
 
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -43,7 +43,14 @@ class BSMapInfoApp(ctk.CTk):
         self.last_active_sidebar_btn_index = -1
         self.last_active_levels_btn_index = -1
         self.maps = []
-
+        self.maps_indices = []
+        self.order_variants = {
+            "Song title" : "song_title",
+            "Song autor" : "song_autor",
+            "Map autor" : "map_autor"
+        }
+        self.direction_variants = ["⮟", "⮝"]
+        
         self.padding = 5
         self.active_btn_color = "#144870"
         self.default_btn_color = "#1F6AA5"
@@ -57,8 +64,10 @@ class BSMapInfoApp(ctk.CTk):
         size, x, y = self.settings.geometry.split('+')
         width, height = size.split('x')
 
-        if x == "-1" or y == "-1":
+        if x == "D":
             x = (self.winfo_screenwidth() - int(width)) // 2
+
+        if y == "D":
             y = (self.winfo_screenheight() - int(height)) // 2
 
         self.geometry(f"{width}x{height}+{x}+{y}")
@@ -138,16 +147,29 @@ class BSMapInfoApp(ctk.CTk):
         self.update_btn = ctk.CTkButton(self.topbar, text="Update", width=50, command=self.update_level_info)
         self.update_btn.pack(side="left", padx=5)
 
-        self.change_dir_btn = ctk.CTkButton(self.topbar, text="Change directory", width=100, command=lambda: self.change_target_dir(True))
+        self.change_dir_btn = ctk.CTkButton(self.topbar, text="Change directory", width=100, command=lambda: self.change_target_dir(forced=True))
         self.change_dir_btn.pack(side="left", padx=5)
 
         self.about_btn = ctk.CTkButton(self.topbar, text="About", width=50, command=self.show_about)
         self.about_btn.pack(side="left", padx=5)
 
         # Search items
-        self.search_entry = ctk.CTkEntry(self.search_frame , textvariable=self.search_var)
-        self.search_entry.pack(pady=5, padx=5, fill="x")
+        self.search_entry = ctk.CTkEntry(self.search_frame, width=236, textvariable=self.search_var)
+        self.search_entry.grid(row=0, column=0, padx=self.padding, pady=self.padding, columnspan=3)
         self.search_var.trace_add("write", self.filter_sidebar)
+
+        self.sort_direction = ctk.CTkButton(self.search_frame, width=25, text=self.direction_variants[self.settings.sort_direction], command=self.sort_direction_change)
+        self.sort_direction.grid(row=1, column=0, padx=self.padding, pady=self.padding)
+
+        # self.sort_order = ctk.CTkOptionMenu(self.search_frame, width=100, values=list(self.order_variants.keys()), variable=ctk.StringVar(value=self.order_variants[self.settings.sort_order]), command=self.sort_order_callback)
+        self.sort_order = ctk.CTkOptionMenu(self.search_frame, width=100, values=list(self.order_variants.keys()), command=self.sort_order_callback)
+        self.sort_order.grid(row=1, column=1, padx=self.padding, pady=self.padding)
+
+        self.update_map_list_btn = ctk.CTkButton(self.search_frame, width=90, text="Update maps", command=self.update_map_list)
+        self.update_map_list_btn.grid(row=1, column=2, padx=self.padding, pady=self.padding)
+
+        self.search_frame.grid_columnconfigure(0, weight=1)
+        self.search_frame.grid_columnconfigure(1, weight=1)
 
 
     def on_closing(self):
@@ -161,28 +183,29 @@ class BSMapInfoApp(ctk.CTk):
     def change_target_dir(self, forced = False):
         if self.settings.target_dir and not forced:
             return
-        
-        selected_dir = ctk.filedialog.askdirectory(
-            title="Select custom maps folder"
-        )
+    
+        selected_dir = ctk.filedialog.askdirectory(title="Select custom maps folder")
 
-        if not selected_dir:
+        if not selected_dir and not self.settings.target_dir:
             no_dir_label = ctk.CTkLabel(self.level_info_frame, text="Please select custom maps folder using \"Change directory\" button.")
             no_dir_label.pack(padx=self.padding * 2, anchor="w")
             self.update()
             return
-
-        if selected_dir == self.settings.target_dir:
+        elif not selected_dir or selected_dir == self.settings.target_dir:
             return
 
         self.settings.target_dir = selected_dir
+        self.reload_map_list()
 
+
+    def reload_map_list(self):
         self.clear_frame(self.maps_list_frame)
         self.clear_frame(self.levels_frame)
         self.clear_frame(self.level_info_frame)
         self.last_active_sidebar_btn_index = -1
         self.last_active_levels_btn_index = -1
         self.maps = []
+        self.maps_indices = []
 
         self.progress_bar_label = ctk.CTkLabel(self.level_info_frame, text="Loading maps...")
         self.progress_bar = ctk.CTkProgressBar(self.level_info_frame)
@@ -217,7 +240,6 @@ class BSMapInfoApp(ctk.CTk):
 
 
     def update_level_info(self, *args):
-
         try:
             bin_size = int(self.bin_size_entry.get())
         except:
@@ -267,13 +289,48 @@ class BSMapInfoApp(ctk.CTk):
 
     def filter_sidebar(self, *args):
         query = self.search_var.get().lower()
-        for index, item in enumerate(self.maps):
-            if query in self.maps[index]["map"].song_title.lower() or query in self.maps[index]["map"].song_autor.lower() or query in self.maps[index]["map"].level_autor.lower():
-                item["btn"].pack_forget()
-                item["btn"].pack(pady=5, fill="x")
+        for index in self.maps_indices:
+            if query in self.maps[index]["map"].song_title.lower() or query in self.maps[index]["map"].song_autor.lower() or query in self.maps[index]["map"].map_autor.lower():
+                self.maps[index]["btn"].pack_forget()
+                self.maps[index]["btn"].pack(pady=5, fill="x")
             else:
-                item["btn"].pack_forget()
+                self.maps[index]["btn"].pack_forget()
         self.maps_list_frame._parent_canvas.yview_moveto(0)
+
+
+    def sort_direction_change(self):
+        self.settings.sort_direction = not self.settings.sort_direction
+        self.sort_direction.configure(text=self.direction_variants[self.settings.sort_direction])
+        self.sort_map_list()
+
+
+    def sort_order_callback(self, choise):
+        self.settings.sort_order = self.order_variants[choise]
+        self.sort_map_list()
+
+
+    def update_map_list(self):
+        old_map_list = set(self.list_dir)
+        new_list_dir = os.listdir()
+        new_map_list = set(new_list_dir)
+
+        removed_maps = old_map_list - new_map_list
+        new_maps = new_map_list - old_map_list
+
+        if not removed_maps and not new_maps:
+            return
+
+        self.list_dir = new_list_dir
+
+        if removed_maps:
+            self.reload_map_list()
+
+        if new_maps:
+            for item in new_maps:
+                new_index = max(self.maps_indices) + 1
+                self.add_map_to_list(new_index, item)
+
+            self.sort_map_list()
 
 
     def load_map_list(self, progress_bar_enabled = False):
@@ -286,43 +343,18 @@ class BSMapInfoApp(ctk.CTk):
             self.update()
 
         os.chdir(self.settings.target_dir)
-        list_dir = os.listdir()
-        list_dir_len = len(list_dir)
+        self.list_dir = os.listdir()
+        list_dir_len = len(self.list_dir)
         update_ticks = int(list_dir_len / 5)
 
-        for index, item in enumerate(list_dir):
-            
-            dir_path = os.path.join(os.getcwd(), item)
-            if not os.path.isdir(dir_path):
-                continue
-
-            map = InfoSchemaVersionHandler(map_path=dir_path)
-
-            map_btn_frame = ctk.CTkFrame(self.maps_list_frame, height=50, fg_color=("gray80", "gray20"))
-            map_btn_frame.pack(pady=5, fill="x")
-            map_btn_frame.pack_propagate(False)
-
-            map_image_path = os.path.join(map.map_path, map.cover_image_filename)
-            orig_map_image = Image.open(map_image_path)
-            map_image = ctk.CTkImage(light_image=orig_map_image, size=(40, 40))
-
-            map_image_label = ctk.CTkLabel(map_btn_frame, image=map_image, text="")
-            map_image_label.grid(row=0, column=0, padx=self.padding, pady=self.padding, sticky="n")
-
-            map_info = f"{map.song_title}\n"
-            map_info += f"By: {map.song_autor}\n" if map.song_autor else ""
-            map_info += f"Map by: {map.level_autor}" if map.level_autor else ""
-
-            map_info_label = ctk.CTkLabel(map_btn_frame, text=map_info, wraplength=148, justify="left")
-            map_info_label.grid(row=0, column=1, pady=self.padding, sticky="nw")
-
-            self.bind_all_children(map_btn_frame, index)
-
-            self.maps.append({"map" : map, "btn" : map_btn_frame})
+        for index, item in enumerate(self.list_dir):
+            self.add_map_to_list(index, item)
 
             if progress_bar_enabled and not index % update_ticks:
                 self.progress_bar.set(index / list_dir_len)
                 self.update()
+
+        self.sort_map_list()
 
         if progress_bar_enabled:
             self.progress_bar.stop()
@@ -331,6 +363,57 @@ class BSMapInfoApp(ctk.CTk):
 
         start_info_label = ctk.CTkLabel(self.level_info_frame, text="Select map on the left sidebar to see info about it.")
         start_info_label.pack(padx=self.padding * 2, anchor="w")
+
+
+    def add_map_to_list(self, index, item):
+        dir_path = os.path.join(os.getcwd(), item)
+        if not os.path.isdir(dir_path):
+            return
+
+        map = InfoSchemaVersionHandler(map_path=dir_path)
+
+        map_btn_frame = ctk.CTkFrame(self.maps_list_frame, height=50, fg_color=("gray80", "gray20"))
+
+        map_image_path = os.path.join(map.map_path, map.cover_image_filename)
+        orig_map_image = Image.open(map_image_path)
+        map_image = ctk.CTkImage(light_image=orig_map_image, size=(40, 40))
+
+        map_image_label = ctk.CTkLabel(map_btn_frame, image=map_image, text="")
+        map_image_label.grid(row=0, column=0, padx=self.padding, pady=self.padding, sticky="n")
+
+        map_info = f"{map.song_title}\n"
+        map_info += f"By: {map.song_autor}\n" if map.song_autor else ""
+        map_info += f"Map by: {map.map_autor}" if map.map_autor else ""
+
+        map_info_label = ctk.CTkLabel(map_btn_frame, text=map_info, wraplength=164, justify="left")
+        map_info_label.grid(row=0, column=1, pady=self.padding, sticky="nw")
+
+        self.bind_all_children(map_btn_frame, index)
+
+        self.maps.append({"map" : map, "btn" : map_btn_frame})
+        self.maps_indices.append(index)
+
+
+    def sort_map_list(self):
+        order = self.settings.sort_order
+        
+        if order == "song_title":
+            self.maps_indices.sort(key=lambda i: self.maps[i]["map"].song_title)
+        elif order == "song_autor":
+            self.maps_indices.sort(key=lambda i: self.maps[i]["map"].song_autor)
+        elif order == "map_autor":
+            self.maps_indices.sort(key=lambda i: self.maps[i]["map"].map_autor)
+
+        if self.settings.sort_direction:
+            self.maps_indices.reverse()
+
+        for item in self.maps:
+            item["btn"].pack_forget()
+
+        for index in self.maps_indices:
+            map_btn_frame = self.maps[index]["btn"]
+            map_btn_frame.pack(pady=5, fill="x")
+            map_btn_frame.pack_propagate(False)
 
 
     def bind_all_children(self, parent, index):
@@ -343,7 +426,10 @@ class BSMapInfoApp(ctk.CTk):
             self.bind_all_children(child, index)
 
 
-    def on_enter(self, index): self.maps[index]["btn"].configure(fg_color=("gray90", "gray30"))
+    def on_enter(self, index): 
+        self.maps[index]["btn"].configure(fg_color=("gray90", "gray30"))
+
+        
     def on_leave(self, index, forced = False):
         if self.last_active_sidebar_btn_index != index or forced:
             self.maps[index]["btn"].configure(fg_color=("gray80", "gray20"))
@@ -387,7 +473,7 @@ class BSMapInfoApp(ctk.CTk):
         self.load_level(map_index=index, level_index=0)
         
 
-    def clear_frame(self, frame: ctk.CTkFrame | ctk.CTkScrollableFrame):
+    def clear_frame(self, frame):
         for widget in frame.winfo_children():
             widget.destroy()
 
@@ -468,11 +554,11 @@ class BSMapInfoApp(ctk.CTk):
         self.level_info_frame.grid_columnconfigure(0, weight=1)
         self.after(100, canvas.draw) # Fix for figure jumping for 1 frame
 
-    def time_adjust(self, timve) -> str:
-        if timve >= 60:
-            return f"{timve // 60} min {timve % 60} sec"
+    def time_adjust(self, time) -> str:
+        if time >= 60:
+            return f"{time // 60} min {int(time % 60)} sec"
         else:
-            return f"{timve} sec"
+            return f"{int(time)} sec"
 
 
 if __name__ == "__main__":
