@@ -429,7 +429,7 @@ class BSMapInfoApp(ctk.CTk):
     def on_enter(self, index): 
         self.maps[index]["btn"].configure(fg_color=("gray90", "gray30"))
 
-        
+
     def on_leave(self, index, forced = False):
         if self.last_active_sidebar_btn_index != index or forced:
             self.maps[index]["btn"].configure(fg_color=("gray80", "gray20"))
@@ -473,7 +473,7 @@ class BSMapInfoApp(ctk.CTk):
         self.load_level(map_index=index, level_index=0)
         
 
-    def clear_frame(self, frame):
+    def clear_frame(self, frame: ctk.CTkFrame | ctk.CTkScrollableFrame):
         for widget in frame.winfo_children():
             widget.destroy()
 

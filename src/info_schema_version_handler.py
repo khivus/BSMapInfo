@@ -4,7 +4,6 @@ import os
 
 class InfoSchemaVersionHandler:
 
-    id: int
     info_major_version: int
     map_path: str
     song_title: str
