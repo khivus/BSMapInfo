@@ -1,9 +1,8 @@
 # BSMapInfo — Beat Saber Map Info
 
-A small desktop utility to browse custom Beat Saber maps and inspect per-level note density (NPS) graphs and short stats. It scans a custom maps folder, parses `Info.dat` and beatmap files (v2/v3/v4 schemas), and shows levels, NPS graphs, idle time, and short statistics in a compact GUI built with CustomTkinter. Beat Saber
-(Implemented in `BSMapInfo.py` and schema handlers.) 
+A small desktop utility to browse custom Beat Saber maps and inspect per-level note density (NPS) graphs and short stats. It scans a custom maps folder, parses `Info.dat` and beatmap files (v2/v3/v4 schemas), and shows levels, NPS graphs, idle time, and short statistics in a compact GUI built with CustomTkinter.
 
----
+(Implemented in `BSMapInfo.py` and schema handlers.)
 
 ## Features
 
@@ -13,59 +12,36 @@ A small desktop utility to browse custom Beat Saber maps and inspect per-level n
 * Toggle options:
   * Count stacked notes (notes at the same beat)
   * Count different-color notes at same beat
-* Shows mean/max/min NPS and total idle time per level. 
-
----
+* Shows avg/max/min NPS and total idle time per level. 
 
 ## Using the UI (short)
 
 * Left sidebar: list of maps (cover + basic info). Click a map to expand and view levels. 
 * Top bar controls:
-
   * Toggle stacked/different-color counting
   * Bin size (seconds) entry
   * Min idle time (seconds) entry
   * Update button (recalculate for current level)
-* Level view: NPS graph, mean/max/min NPS, total idle time, and a list of detected idle segments. 
+  * About program button
+* Level view: NPS graph, avg/max/min NPS, total idle time. 
 
----
+## Run program
 
-## Requirements
-
-* Python 3.8+
-* Packages (installable via pip):
-
-  * `customtkinter`
-  * `matplotlib`
-  * `pillow`
-  * `numpy`
-
----
-
-## Install & Run
-
-1. Clone the repo (or copy the project files) to a folder.
-2. Run the app:
-
-```bash
-python BSMapInfo.py
-```
+1. Download `BSMapInfo.exe` from [latest release page](https://github.com/khivus/BSMapInfo/releases/latest).
+2. Run `BSMapInfo.exe`
 
 When the app first starts it will ask you to select your custom maps folder (the folder that contains individual map directories). The app then scans that folder and populates the left sidebar. 
 
----
+## Troubleshooting
 
-## Packaging
+* **App crashes on startup**: Ensure `customtkinter`, `matplotlib`, `pillow`, `numpy` are installed and you run on Python 3.8+.
+* **No maps listed**: Point the app at a folder containing Beat Saber custom map subfolders (each map is a directory containing an `Info.dat`). Use the `Change directory` button if the app didn’t prompt automatically. 
+* **Graph shows strange values**: Maps with malformed level JSON can produce incorrect parsing; the app will show a warning for “bad mappers.” 
 
-A recommended one-file Windows build (example):
+**Known behavior / limitations**
 
-```bash
-python -m PyInstaller --windowed --onefile --icon="icon.ico" BSMapInfo.py
-```
-
-(There is a commented example in `BSMapInfo.py` — adjust paths and icon as needed.) 
-
----
+* For some “nonstandard” maps the parser may mark `bad_mapper=True` and warn that NPS/graph might be inaccurate — this happens when the expected fields are missing or malformed. 
+* For v4 `Info` files the original map author field may be empty (behavior depends on map metadata). 
 
 ## Settings & where they are stored
 
@@ -81,27 +57,29 @@ Settings are persisted in the Windows `%LOCALAPPDATA%\BSMapInfo\settings.json` l
 
 The settings loader performs a small migration: if keys are missing they are filled with defaults and saved back. See `SettingsHandler` for details. *(Settings handling logic lives alongside the app code.)*
 
----
+## Requirements
+
+* Python 3.8+
+* Packages (installable via pip):
+  * `customtkinter`
+  * `matplotlib`
+  * `pillow`
+  * `numpy`
+
+## Packaging
+
+A recommended one-file Windows build (example):
+
+```bash
+python -m PyInstaller --windowed --onefile --icon="icon.ico" BSMapInfo.py
+```
+
+(There is a commented example in `BSMapInfo.py` — adjust paths and icon as needed.) 
 
 ## Schema support / parsing notes
 
 * `Info.dat` versions are detected (major version parsed from `version` or `_version`). Handlers map fields for major versions 2 and 4. See `info_schema_version_handler.py` for specifics. 
 * Level/beatmap files are parsed by `level_schema_version_handler.py`, which supports level schema v2, v3 and v4 and extracts notes (beat + color). It also converts beats → seconds using song BPM and computes histograms (NPS) using NumPy. 
-
-**Known behavior / limitations**
-
-* For some “nonstandard” maps the parser may mark `bad_mapper=True` and warn that NPS/graph might be inaccurate — this happens when the expected fields are missing or malformed. 
-* For v4 `Info` files the original map author field may be empty (behavior depends on map metadata). 
-
----
-
-## Troubleshooting
-
-* **App crashes on startup**: Ensure `customtkinter`, `matplotlib`, `pillow`, `numpy` are installed and you run on Python 3.8+.
-* **No maps listed**: Point the app at a folder containing Beat Saber custom map subfolders (each map is a directory containing an `Info.dat`). Use the `Change directory` button if the app didn’t prompt automatically. 
-* **Graph shows strange values**: Maps with malformed level JSON can produce incorrect parsing; the app will show a warning for “bad mappers.” 
-
----
 
 ## License
 
