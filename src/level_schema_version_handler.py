@@ -1,5 +1,9 @@
+import os
 import json
 import numpy as np
+
+from info_schema_version_handler import InfoSchemaVersionHandler
+from settings_handler import SettingsHandler
 
 
 class LevelSchemaVersionHandler:
@@ -20,10 +24,13 @@ class LevelSchemaVersionHandler:
     bad_mapper: bool = False
 
 
-    def __init__(self, characteristic: str, difficulty: str, njs: float, filepath: str):
-        self.characteristic = characteristic
-        self.difficulty = difficulty
-        self.njs = njs
+    def __init__(self, map: InfoSchemaVersionHandler, settings: SettingsHandler, level_index: int):
+
+        self.characteristic = map.levels[level_index]["characteristic"]
+        self.difficulty = map.levels[level_index]["difficulty"]
+        self.njs = map.levels[level_index]["njs"]
+
+        filepath = os.path.join(map.map_path, map.levels[level_index]["filename"])
 
         with open(filepath, 'r', encoding="utf-8") as file:
             self.level_json = json.load(file)
@@ -39,6 +46,13 @@ class LevelSchemaVersionHandler:
             self.v3_handler()
         else:
             self.v4_handler()
+
+        if not self.notes_in_beats:
+            return
+
+        self.beats_to_seconds(bpm=map.bpm)
+        self.count_notes_density(bin_size=settings.bin_size, stacked_counted=settings.stacked_counted.get(), different_color_counted=settings.different_color_counted.get())
+        self.count_short_stats(bin_size=settings.bin_size, min_idle_time=settings.min_idle_time)
 
 
     def v2_handler(self):
@@ -157,4 +171,11 @@ class LevelSchemaVersionHandler:
         self.max_nps = np.max(non_zero)
         self.min_nps = np.min(non_zero)
         self.mean_nps = float(np.mean(non_zero))
-        self.idle_time = idle_time
+        self.idle_time = self.time_adjust(self.sum_idle)
+
+    
+    def time_adjust(self, time) -> list:
+        if time >= 60:
+            return [round(time // 60), round(time % 60)]
+        else:
+            return [0, round(time)]

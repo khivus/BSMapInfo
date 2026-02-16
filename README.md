@@ -1,4 +1,4 @@
-# BSMapInfo — Beat Saber Map Info
+# BSMapInfo - Beat Saber Map Info
 
 A small desktop utility to browse custom Beat Saber maps and inspect per-level note density (NPS) graphs and short stats. It scans a custom maps folder, parses `Info.dat` and beatmap files (v2/v3/v4 schemas), and shows levels, NPS graphs, idle time, and short statistics in a compact GUI built with CustomTkinter.
 
@@ -23,7 +23,7 @@ A small desktop utility to browse custom Beat Saber maps and inspect per-level n
   * Min idle time (seconds) entry
   * Update button (recalculate for current level)
   * About program button
-* Level view: NPS graph, avg/max/min NPS, total idle time. 
+* Level view: NPS graph, BPM, avg/max/min NPS, NJS, total idle time. 
 
 ## Run program
 
@@ -40,20 +40,20 @@ When the app first starts it will ask you to select your custom maps folder (the
 
 **Known behavior / limitations**
 
-* For some “nonstandard” maps the parser may mark `bad_mapper=True` and warn that NPS/graph might be inaccurate — this happens when the expected fields are missing or malformed. 
+* For some “nonstandard” maps the parser may mark `bad_mapper=True` and warn that NPS/graph might be inaccurate - this happens when the expected fields are missing or malformed. 
 * For v4 `Info` files the original map author field may be empty (behavior depends on map metadata). 
 
 ## Settings & where they are stored
 
 Settings are persisted in the Windows `%LOCALAPPDATA%\BSMapInfo\settings.json` location. The app uses that file to store:
 
-* `target_dir` — path to your custom maps folder
-* `geometry` — window geometry
-* `bin_size` — seconds per NPS bin (integer)
-* `min_idle_time` — minimum idle time to count toward idle total
-* `stacked_counted` — boolean: count stacked notes
-* `different_color_counted` — boolean: count different-color occurrences at same beat
-* `sort_order` / `sort_direction` — sidebar sorting preferences
+* `target_dir` - path to your custom maps folder
+* `geometry` - window geometry
+* `bin_size` - seconds per NPS bin (integer)
+* `min_idle_time` - minimum idle time to count toward idle total
+* `stacked_counted` - boolean: count stacked notes
+* `different_color_counted` - boolean: count different-color occurrences at same beat
+* `sort_order` / `sort_direction` - sidebar sorting preferences
 
 The settings loader performs a small migration: if keys are missing they are filled with defaults and saved back. See `SettingsHandler` for details. *(Settings handling logic lives alongside the app code.)*
 
@@ -74,7 +74,7 @@ A recommended one-file Windows build (example):
 python -m PyInstaller --windowed --onefile --icon="icon.ico" BSMapInfo.py
 ```
 
-(There is a commented example in `BSMapInfo.py` — adjust paths and icon as needed.) 
+(There is a commented example in `BSMapInfo.py` - adjust paths and icon as needed.) 
 
 ## Schema support / parsing notes
 

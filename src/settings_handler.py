@@ -18,7 +18,7 @@ class SettingsHandler:
         "sort_direction" : 0
     }
 
-    def __init__(self, app_name) -> None:
+    def __init__(self, app_instance, app_name) -> None:
         local_appdata = os.getenv('LOCALAPPDATA')
         if not local_appdata:
             raise RuntimeError("LOCALAPPDATA not found!")
@@ -29,7 +29,9 @@ class SettingsHandler:
 
         # self.settings_file.unlink()
         
+        self.__app__ = app_instance
         self._load_settings()
+        self._calculate_geometry()
 
 
     def _load_settings(self):
@@ -70,6 +72,19 @@ class SettingsHandler:
         self.different_color_counted = ctk.BooleanVar(value=self._settings["different_color_counted"])
         self.sort_order = self._settings["sort_order"]
         self.sort_direction = self._settings["sort_direction"]
+
+
+    def _calculate_geometry(self):
+        size, x, y = self.geometry.split('+')
+        width, height = size.split('x')
+
+        if x == "D":
+            x = (self.__app__.winfo_screenwidth() - int(width)) // 2
+
+        if y == "D":
+            y = (self.__app__.winfo_screenheight() - int(height)) // 2
+
+        self.geometry = f"{width}x{height}+{x}+{y}"
 
 
     def save_settings(self):

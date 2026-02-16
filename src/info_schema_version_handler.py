@@ -1,5 +1,6 @@
 import json
 import os
+import mutagen
 
 
 class InfoSchemaVersionHandler:
@@ -32,9 +33,9 @@ class InfoSchemaVersionHandler:
             self.info_json = json.load(file)
 
         try:
-            self.info_major_version = int(self.info_json["version"].split('.')[0])
-        except:
             self.info_major_version = int(self.info_json["_version"].split('.')[0])
+        except:
+            self.info_major_version = int(self.info_json["version"].split('.')[0])
 
         if self.info_major_version == 2:
             self.v2_handler()
@@ -50,7 +51,7 @@ class InfoSchemaVersionHandler:
         self.song_title = self.info_json["_songName"]
         self.song_autor = self.info_json["_songAuthorName"]
         self.map_autor = self.info_json["_levelAuthorName"]
-        self.song_duration = 0 # don't nedeed really
+        self.song_duration = self._get_song_length()
         self.bpm = self.info_json["_beatsPerMinute"]
         self.cover_image_filename = self.info_json["_coverImageFilename"]
 
@@ -91,3 +92,11 @@ class InfoSchemaVersionHandler:
             })
         
         self.levels = levels
+
+
+    def _get_song_length(self):
+        path = os.path.join(self.map_path, self.info_json["_songFilename"])
+        audio = mutagen.File(path) # type: ignore
+        if audio is None or not hasattr(audio, "info"):
+            return 0
+        return audio.info.length
