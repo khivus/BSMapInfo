@@ -52,7 +52,7 @@ class LevelHandler:
         if not self.notes_in_beats:
             return
 
-        self.beats_to_seconds(bpm=map.bpm)
+        self.beats_to_seconds(map.bpm, map.bpm_regions, map.sample_count, map.song_duration)
         self.count_notes_density(bin_size=settings.bin_size, merge_same_color_stacks=settings.merge_same_color_stacks.get(), merge_mixed_color_stacks=settings.merge_mixed_color_stacks.get())
         self.count_short_stats(bin_size=settings.bin_size, min_idle_time=settings.min_idle_time)
 
@@ -92,13 +92,76 @@ class LevelHandler:
         self.notes_in_beats = notes
 
 
-    def beats_to_seconds(self, bpm: float):
-        notes = []
-        for note in self.notes_in_beats:
-            note_sec = (note["beat"] * 60) / bpm
-            notes.append({"beat" : note_sec, "color" : note["color"]})
+    # def beats_to_seconds(self, bpm: float):
+    #     notes = []
+    #     for note in self.notes_in_beats:
+    #         note_sec = (note["beat"] * 60) / bpm
+    #         notes.append({"beat" : note_sec, "color" : note["color"]})
         
-        self.notes_in_seconds = notes
+    #     self.notes_in_seconds = notes
+
+
+    def beats_to_seconds(self, global_bpm: float, regions: list, sample_count: int, song_length: float):
+
+        if not regions or not sample_count:
+            self.notes_in_seconds = [
+                {
+                    "beat": note["beat"] * 60.0 / global_bpm,
+                    "color": note["color"]
+                }
+                for note in self.notes_in_beats
+            ]
+            return
+        
+        sample_rate = sample_count / song_length
+        prepared_regions = []
+        for r in regions:
+            samples = r["end_sample_index"] - r["start_sample_index"]
+            seconds = samples / sample_rate
+            beats = r["end_beat"] - r["start_beat"]
+
+            region_bpm = beats / seconds * 60.0
+
+            prepared_regions.append({
+                "startBeat": r["start_beat"],
+                "endBeat": r["end_beat"],
+                "bpm": region_bpm
+            })
+
+        prepared_regions.sort(key=lambda x: x["startBeat"])
+
+        def beat_to_sec(target_beat: float) -> float:
+            time_sec = 0.0
+            current_beat = 0.0
+
+            for reg in prepared_regions:
+
+                if target_beat <= reg["startBeat"]:
+                    time_sec += (target_beat - current_beat) * 60.0 / global_bpm
+                    return time_sec
+
+                time_sec += (reg["startBeat"] - current_beat) * 60.0 / global_bpm
+                current_beat = reg["startBeat"]
+
+                if target_beat <= reg["endBeat"]:
+                    time_sec += (target_beat - current_beat) * 60.0 / reg["bpm"]
+                    return time_sec
+
+                time_sec += (reg["endBeat"] - current_beat) * 60.0 / reg["bpm"]
+                current_beat = reg["endBeat"]
+
+            time_sec += (target_beat - current_beat) * 60.0 / global_bpm
+            return time_sec
+
+        result = []
+        for note in self.notes_in_beats:
+            sec = beat_to_sec(note["beat"])
+            result.append({
+                "beat": sec,
+                "color": note["color"]
+            })
+
+        self.notes_in_seconds = result
 
     
     def count_notes_density(self, bin_size : int, merge_same_color_stacks: bool, merge_mixed_color_stacks: bool): # Returns list of counted notes in list

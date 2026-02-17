@@ -50,6 +50,8 @@ class MapHandler:
         else:
             self.v4_handler()
 
+        self._check_bpm_regions()
+
         for index, level in enumerate(self.levels):
             if level["difficulty"] == "ExpertPlus":
                 self.levels[index]["difficulty"] = "Expert+"
@@ -108,3 +110,47 @@ class MapHandler:
         if audio is None or not hasattr(audio, "info"):
             return 0
         return audio.info.length
+    
+
+    def _check_bpm_regions(self):
+        self.sample_count = 0
+        self.bpm_regions = []
+
+        audio_info = ("BPMInfo.dat", "AudioData.dat")
+        for file_name in audio_info:
+            audio_info_file_path = os.path.join(self.map_path, file_name)
+            if not os.path.isfile(audio_info_file_path):
+                continue
+
+            with open(audio_info_file_path, 'r', encoding="utf-8") as file:
+                audio_info = json.load(file)
+            
+            try:
+                audio_info_version = int(audio_info["_version"].split('.')[0])
+            except:
+                audio_info_version = int(audio_info["version"].split('.')[0])
+
+            bpm_regions = []
+
+            if audio_info_version == 2:
+                self.sample_count = audio_info["_songSampleCount"]
+
+                for region in audio_info["_regions"]:
+                    bpm_regions.append({
+                        "start_sample_index" : region["_startSampleIndex"],
+                        "end_sample_index" : region["_endSampleIndex"],
+                        "start_beat" : region["_startBeat"],
+                        "end_beat" : region["_endBeat"]
+                    })
+            else:
+                self.sample_count = audio_info["songSampleCount"]
+
+                for region in audio_info["bpmData"]:
+                    bpm_regions.append({
+                        "start_sample_index" : region["si"],
+                        "end_sample_index" : region["ei"],
+                        "start_beat" : region["sb"],
+                        "end_beat" : region["eb"]
+                    })
+
+            self.bpm_regions = bpm_regions

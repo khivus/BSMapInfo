@@ -11,7 +11,7 @@ from map_handler import MapHandler
 from level_handler import LevelHandler
 
 
-VERSION = "1.0.4"
+VERSION = "1.0.5"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -20,7 +20,6 @@ FULL_APP_NAME = "Beat Saber Map Info"
 # python -m PyInstaller --windowed --onefile --icon="icon.ico" src/BSMapInfo.py
 
 
-# TODO: Dynamic bpm
 # TODO: Tooltips
 # TODO: Zip dropbox
 
@@ -51,8 +50,10 @@ class BSMapInfoApp(ctk.CTk):
 
         self.last_active_sidebar_btn_index = -1
         self.last_active_levels_btn_index = -1
+        self.is_map_btn_locked = False
         self.maps = []
         self.maps_indices = []
+
         self.order_variants = {
             "Song title" : "song_title",
             "Song autor" : "song_autor",
@@ -61,6 +62,7 @@ class BSMapInfoApp(ctk.CTk):
             "BPM" : "bpm"
         }
         self.direction_variants = ["⮟", "⮝"]
+
         self.padding = 5
         self.button_colors = {
             "default" : "#333333",
@@ -271,7 +273,7 @@ class BSMapInfoApp(ctk.CTk):
         self.settings.bin_size = bin_size
         self.settings.min_idle_time = min_idle_time
         if self.last_active_sidebar_btn_index != -1 and self.last_active_levels_btn_index != -1:
-            self.load_level(map_index=self.last_active_sidebar_btn_index, level_index=self.last_active_levels_btn_index, forced=True)
+            self.unload_level(map_index=self.last_active_sidebar_btn_index, level_index=self.last_active_levels_btn_index, forced=True)
 
 
     def show_about(self):
@@ -342,7 +344,6 @@ class BSMapInfoApp(ctk.CTk):
 
 
     def load_map_list(self, progress_bar_enabled = False):
-
         if progress_bar_enabled:
             self.progress_bar_label.pack(padx=self.padding * 2, pady=self.padding, anchor="w")
             self.progress_bar.pack(padx=self.padding * 2, fill="x")
@@ -431,7 +432,7 @@ class BSMapInfoApp(ctk.CTk):
 
     def bind_all_children(self, parent, index):
 
-        parent.bind("<Button-1>", lambda event, i=index : self.load_map(i))
+        parent.bind("<Button-1>", lambda event, i=index : self.unload_map(i))
         parent.bind("<Enter>", lambda event, i=index : self.on_enter(i))
         parent.bind("<Leave>", lambda event, i=index : self.on_leave(i))
 
@@ -448,23 +449,38 @@ class BSMapInfoApp(ctk.CTk):
             self.maps[index]["btn"].configure(fg_color=self.button_colors["default"])
 
 
-    def load_map(self, index: int):
-        if self.last_active_sidebar_btn_index == index:
+    def unlock_btn(self): # Button spam protection
+        self.is_map_btn_locked = False
+
+
+    def unload_map(self, index: int):
+        if self.last_active_sidebar_btn_index == index or self.is_map_btn_locked:
             return
+
+        # lock button for spam protection
+        self.is_map_btn_locked = True
+        self.after(250, self.unlock_btn)
 
         # Clear frames
         self.clear_frame(self.levels_frame)
         self.clear_frame(self.level_info_frame)
-        
-        # Clear button selector
+
+        # Clear previous button selector
         if self.last_active_sidebar_btn_index != -1:
             self.on_leave(self.last_active_sidebar_btn_index, True)
 
-        # Set active color for selected button
-        self.on_enter(index)
-
         # Clear level button index
         self.last_active_levels_btn_index = -1
+
+        self.levels_frame.update_idletasks()
+        self.level_info_frame.update_idletasks()
+
+        self.after(20, lambda: self.load_map(index))
+
+
+    def load_map(self, index: int):
+        # Set active color for selected button
+        self.on_enter(index)
 
         map: MapHandler = self.maps[index]["map"]
 
@@ -477,7 +493,7 @@ class BSMapInfoApp(ctk.CTk):
             lvl_btn = ctk.CTkButton(
                 self.levels_frame, 
                 text=f"{map.characteristics[level['characteristic']]} {level['difficulty']}",
-                command=lambda li=i  : self.load_level(map_index=index, level_index=li),
+                command=lambda li=i  : self.unload_level(map_index=index, level_index=li),
                 fg_color=self.button_colors[level['difficulty']],
                 hover_color=self.button_hover_colors[level['difficulty']]
             )
@@ -494,32 +510,38 @@ class BSMapInfoApp(ctk.CTk):
 
         self.last_active_sidebar_btn_index = index
 
-        self.load_level(map_index=index, level_index=max_difficulty_index)
+        self.unload_level(map_index=index, level_index=max_difficulty_index)
         
 
     def clear_frame(self, frame: ctk.CTkFrame | ctk.CTkScrollableFrame):
         for widget in frame.winfo_children():
             widget.destroy()
+        frame.update_idletasks()
 
 
-    def load_level(self, map_index: int, level_index: int, forced = False):
+    def unload_level(self, map_index: int, level_index: int, forced = False):
         if self.last_active_levels_btn_index == level_index and not forced:
             return
         
+        # Clear frames
         self.clear_frame(self.level_info_frame)
         plt.close('all')
 
+        # Clear last button active
+        if self.last_active_levels_btn_index != -1:
+            self.map_levels[self.last_active_levels_btn_index]["btn"].configure(fg_color=self.button_colors[self.maps[map_index]["map"].levels[self.last_active_levels_btn_index]["difficulty"]], border_width=0)
+
+        self.level_info_frame.update_idletasks()
+
+        self.level_info_frame.after(10, lambda: self.load_level(map_index=map_index, level_index=level_index))
+
+
+    def load_level(self, map_index: int, level_index: int):
         map: MapHandler = self.maps[map_index]["map"]
         level = LevelHandler(map=map, settings=self.settings, level_index=level_index)
 
-        # Clear last button active
-        if self.last_active_levels_btn_index != -1:
-            self.map_levels[self.last_active_levels_btn_index]["btn"].configure(fg_color=self.button_colors[map.levels[self.last_active_levels_btn_index]["difficulty"]])
-            self.map_levels[self.last_active_levels_btn_index]["btn"].configure(border_width=0, border_color="white")
-
         # Set active button color
-        self.map_levels[level_index]["btn"].configure(fg_color=self.button_hover_colors[level.difficulty])
-        self.map_levels[level_index]["btn"].configure(border_width=1, border_color="white")
+        self.map_levels[level_index]["btn"].configure(fg_color=self.button_hover_colors[level.difficulty], border_width=1, border_color="white")
 
         # Set level in label
         map_name_text = f"{map.song_title}"
