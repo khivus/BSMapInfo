@@ -51,7 +51,7 @@ class LevelSchemaVersionHandler:
             return
 
         self.beats_to_seconds(bpm=map.bpm)
-        self.count_notes_density(bin_size=settings.bin_size, stacked_counted=settings.stacked_counted.get(), different_color_counted=settings.different_color_counted.get())
+        self.count_notes_density(bin_size=settings.bin_size, merge_same_color_stacks=settings.merge_same_color_stacks.get(), merge_mixed_color_stacks=settings.merge_mixed_color_stacks.get())
         self.count_short_stats(bin_size=settings.bin_size, min_idle_time=settings.min_idle_time)
 
 
@@ -99,7 +99,7 @@ class LevelSchemaVersionHandler:
         self.notes_in_seconds = notes
 
     
-    def count_notes_density(self, bin_size : int, stacked_counted: bool, different_color_counted: bool): # Returns list of counted notes in list
+    def count_notes_density(self, bin_size : int, merge_same_color_stacks: bool, merge_mixed_color_stacks: bool): # Returns list of counted notes in list
         stop = self.notes_in_seconds[len(self.notes_in_seconds) - 1]["beat"] + bin_size
 
         raw_notes = []
@@ -113,9 +113,9 @@ class LevelSchemaVersionHandler:
             stacked_exists = (beat, color) in seen_stacked
             different_color_exists = (beat, not color) in seen_different
 
-            if stacked_exists and not stacked_counted:
+            if stacked_exists and merge_same_color_stacks:
                 continue
-            if different_color_exists and not different_color_counted:
+            if different_color_exists and merge_mixed_color_stacks:
                 continue
 
             raw_notes.append(beat)

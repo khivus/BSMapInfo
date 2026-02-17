@@ -9,11 +9,11 @@ class SettingsHandler:
 
     default_settings = {
         "target_dir" : "",
-        "geometry" : "850x500+D+D",
+        "geometry" : "870x500+D+D",
         "bin_size" : 3,
         "min_idle_time" : 3,
-        "stacked_counted" : True,
-        "different_color_counted" : True,
+        "merge_same_color_stacks" : False,
+        "merge_mixed_color_stacks" : False,
         "sort_order" : "song_title",
         "sort_direction" : 0
     }
@@ -68,8 +68,8 @@ class SettingsHandler:
         self.geometry = self._settings["geometry"]
         self.bin_size = self._settings["bin_size"]
         self.min_idle_time = self._settings["min_idle_time"]
-        self.stacked_counted = ctk.BooleanVar(value=self._settings["stacked_counted"])
-        self.different_color_counted = ctk.BooleanVar(value=self._settings["different_color_counted"])
+        self.merge_same_color_stacks = ctk.BooleanVar(value=self._settings["merge_same_color_stacks"])
+        self.merge_mixed_color_stacks = ctk.BooleanVar(value=self._settings["merge_mixed_color_stacks"])
         self.sort_order = self._settings["sort_order"]
         self.sort_direction = self._settings["sort_direction"]
 
@@ -93,8 +93,8 @@ class SettingsHandler:
         settings["geometry"] = self.geometry
         settings["bin_size"] = self.bin_size
         settings["min_idle_time"] = self.min_idle_time
-        settings["stacked_counted"] = self.stacked_counted.get()
-        settings["different_color_counted"] = self.different_color_counted.get()
+        settings["merge_same_color_stacks"] = self.merge_same_color_stacks.get()
+        settings["merge_mixed_color_stacks"] = self.merge_mixed_color_stacks.get()
         settings["sort_order"] = self.sort_order
         settings["sort_direction"] = self.sort_direction
 

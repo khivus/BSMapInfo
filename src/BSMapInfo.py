@@ -11,7 +11,7 @@ from info_schema_version_handler import InfoSchemaVersionHandler
 from level_schema_version_handler import LevelSchemaVersionHandler
 
 
-VERSION = "1.0.3"
+VERSION = "1.0.4"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -20,6 +20,7 @@ FULL_APP_NAME = "Beat Saber Map Info"
 # python -m PyInstaller --windowed --onefile --icon="icon.ico" src/BSMapInfo.py
 
 
+# TODO: Rename files and classes to better show what they about
 # TODO: All ui recoloring
 # TODO: Dynamic bpm
 # TODO: Rename some settings in ui
@@ -41,7 +42,7 @@ class BSMapInfoApp(ctk.CTk):
         self.set_state()
 
         self.geometry(self.settings.geometry)
-        self.minsize(850, 500)
+        self.minsize(880, 500)
 
         self.build_ui()
 
@@ -140,38 +141,38 @@ class BSMapInfoApp(ctk.CTk):
         self.graph_frame.grid_rowconfigure(1, weight=1)
 
         # Topbar items
-        self.stacked_counted_btn = ctk.CTkButton(self.topbar, text="Stacked counted", width=50, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], command=lambda: self.toggle(self.settings.stacked_counted, self.stacked_counted_btn))
-        self.stacked_counted_btn.pack(side="left", padx=5)
-        self.update_toggle_button(self.settings.stacked_counted, self.stacked_counted_btn)
-        self.settings.stacked_counted.trace_add("write", self.update_level_info)
+        self.same_color_lbl = ctk.CTkLabel(self.topbar, text="Same-color stacks")
+        self.same_color_lbl.pack(side="left", padx=self.padding)
+        self.same_color_cb = ctk.CTkCheckBox(self.topbar, text="", width=0, variable=self.settings.merge_same_color_stacks, hover_color=self.button_hover_colors["default"], fg_color=self.button_hover_colors["default"], checkmark_color="white")
+        self.same_color_cb.pack(side="left")
 
-        self.different_color_counted_btn = ctk.CTkButton(self.topbar, text="Different color counted", width=50, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], command=lambda: self.toggle(self.settings.different_color_counted, self.different_color_counted_btn))
-        self.different_color_counted_btn.pack(side="left", padx=5)
-        self.update_toggle_button(self.settings.different_color_counted, self.different_color_counted_btn)
-        self.settings.different_color_counted.trace_add("write", self.update_level_info)
+        self.different_color_lbl = ctk.CTkLabel(self.topbar, text="Mixed-color stacks")
+        self.different_color_lbl.pack(side="left", padx=self.padding)
+        self.different_color_cb = ctk.CTkCheckBox(self.topbar, text="", width=0, variable=self.settings.merge_mixed_color_stacks, hover_color=self.button_hover_colors["default"], fg_color=self.button_hover_colors["default"], checkmark_color="white")
+        self.different_color_cb.pack(side="left")
 
-        self.bin_size_label = ctk.CTkLabel(self.topbar, text="Bin size (sec)")
-        self.bin_size_label.pack(side="left", padx=5)
+        self.bin_size_label = ctk.CTkLabel(self.topbar, text="Precision step (s)")
+        self.bin_size_label.pack(side="left", padx=self.padding)
         self.bin_size_entry = ctk.CTkEntry(self.topbar, width=50, placeholder_text="3")
         self.bin_size_entry.insert(0, f"{self.settings.bin_size}")
-        self.bin_size_entry.pack(side="left", padx=5)
+        self.bin_size_entry.pack(side="left", padx=self.padding)
         self.bin_size_entry.bind("<Key>", self.validate_only_digits)
 
-        self.min_idle_time_label = ctk.CTkLabel(self.topbar, text="Min idle time (sec)")
-        self.min_idle_time_label.pack(side="left", padx=5)
+        self.min_idle_time_label = ctk.CTkLabel(self.topbar, text="Min rest time (s)")
+        self.min_idle_time_label.pack(side="left", padx=self.padding)
         self.min_idle_time_entry = ctk.CTkEntry(self.topbar, width=50, placeholder_text="3")
         self.min_idle_time_entry.insert(0, f"{self.settings.min_idle_time}")
-        self.min_idle_time_entry.pack(side="left", padx=5)
+        self.min_idle_time_entry.pack(side="left", padx=self.padding)
         self.min_idle_time_entry.bind("<Key>", self.validate_only_digits)
 
         self.update_btn = ctk.CTkButton(self.topbar, text="Update", width=50, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], command=self.update_level_info)
-        self.update_btn.pack(side="left", padx=5)
+        self.update_btn.pack(side="left", padx=self.padding)
 
         self.change_dir_btn = ctk.CTkButton(self.topbar, text="Change directory", width=100, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], command=lambda: self.change_target_dir(forced=True))
-        self.change_dir_btn.pack(side="left", padx=5)
+        self.change_dir_btn.pack(side="left", padx=self.padding)
 
         self.about_btn = ctk.CTkButton(self.topbar, text="About", width=50, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], command=self.show_about)
-        self.about_btn.pack(side="left", padx=5)
+        self.about_btn.pack(side="left", padx=self.padding)
 
         # Search items
         self.search_entry = ctk.CTkEntry(self.search_frame, width=112, textvariable=self.search_var)
@@ -247,18 +248,6 @@ class BSMapInfoApp(ctk.CTk):
             return
 
         return "break"
-
-
-    def toggle(self, var: ctk.BooleanVar, btn: ctk.CTkButton):
-        var.set(False if var.get() else True)
-        self.update_toggle_button(var, btn)
-
-
-    def update_toggle_button(self, var: ctk.BooleanVar, btn: ctk.CTkButton):
-        if var.get():
-            btn.configure(fg_color=self.button_hover_colors["default"])
-        else:
-            btn.configure(fg_color=self.button_colors["default"])
 
 
     def update_level_info(self, *args):
