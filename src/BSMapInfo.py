@@ -16,7 +16,7 @@ from map_handler import MapHandler
 from level_handler import LevelHandler
 
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -314,7 +314,8 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         file_path = event.data.strip("{}")
 
         temp_map_dir = self.settings.app_dir / "temp_map"
-        shutil.rmtree(temp_map_dir)
+        if os.path.isdir(temp_map_dir):
+            shutil.rmtree(temp_map_dir)
         temp_map_dir.mkdir(parents=True, exist_ok=True)
 
         try:
