@@ -3,7 +3,7 @@ import os
 import mutagen
 
 
-class InfoSchemaVersionHandler:
+class MapHandler:
 
     info_major_version: int
     map_path: str
@@ -22,6 +22,14 @@ class InfoSchemaVersionHandler:
         "Lawless" : "Ll",
         "90Degree" : "90D",
         "360Degree" : "360D"
+    }
+
+    difficulties = {
+        "Easy" : 1,
+        "Normal" : 3,
+        "Hard" : 5,
+        "Expert" : 7,
+        "Expert+" : 9
     }
 
 

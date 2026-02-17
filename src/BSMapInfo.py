@@ -7,8 +7,8 @@ from PIL import Image
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from settings_handler import SettingsHandler
-from info_schema_version_handler import InfoSchemaVersionHandler
-from level_schema_version_handler import LevelSchemaVersionHandler
+from map_handler import MapHandler
+from level_handler import LevelHandler
 
 
 VERSION = "1.0.4"
@@ -20,12 +20,9 @@ FULL_APP_NAME = "Beat Saber Map Info"
 # python -m PyInstaller --windowed --onefile --icon="icon.ico" src/BSMapInfo.py
 
 
-# TODO: Rename files and classes to better show what they about
-# TODO: All ui recoloring
 # TODO: Dynamic bpm
-# TODO: Rename some settings in ui
 # TODO: Tooltips
-# TODO: Median, Sample variance https://excel2.ru/articles/opisatelnaya-statistika-v-ms-excel
+# TODO: Zip dropbox
 
 
 class BSMapInfoApp(ctk.CTk):
@@ -75,11 +72,11 @@ class BSMapInfoApp(ctk.CTk):
         }
         self.button_hover_colors = {
             "default" : "#4d4d4d",
-            "Easy" : "#006643",
-            "Normal" : "#0f5887",
-            "Hard" : "#a34900",
-            "Expert" : "#9c2417",
-            "Expert+" : "#653c96"
+            "Easy" : "#004d32",
+            "Normal" : "#0c476e",
+            "Hard" : "#8a3e00",
+            "Expert" : "#821e14",
+            "Expert+" : "#54327d"
         }
 
         self.search_var = ctk.StringVar(value="Search...")
@@ -158,7 +155,7 @@ class BSMapInfoApp(ctk.CTk):
         self.bin_size_entry.pack(side="left", padx=self.padding)
         self.bin_size_entry.bind("<Key>", self.validate_only_digits)
 
-        self.min_idle_time_label = ctk.CTkLabel(self.topbar, text="Min rest time (s)")
+        self.min_idle_time_label = ctk.CTkLabel(self.topbar, text="Min idle time (s)")
         self.min_idle_time_label.pack(side="left", padx=self.padding)
         self.min_idle_time_entry = ctk.CTkEntry(self.topbar, width=50, placeholder_text="3")
         self.min_idle_time_entry.insert(0, f"{self.settings.min_idle_time}")
@@ -382,7 +379,7 @@ class BSMapInfoApp(ctk.CTk):
         if not os.path.isdir(dir_path):
             return
 
-        map = InfoSchemaVersionHandler(map_path=dir_path)
+        map = MapHandler(map_path=dir_path)
 
         map_btn_frame = ctk.CTkFrame(self.maps_list_frame, height=50, fg_color=self.button_colors["default"])
 
@@ -469,9 +466,12 @@ class BSMapInfoApp(ctk.CTk):
         # Clear level button index
         self.last_active_levels_btn_index = -1
 
-        map: InfoSchemaVersionHandler = self.maps[index]["map"]
+        map: MapHandler = self.maps[index]["map"]
 
         self.map_levels = []
+        max_difficulty_index = 0
+        max_difficulty = 0
+        i = 0
 
         for i, level in enumerate(map.levels):
             lvl_btn = ctk.CTkButton(
@@ -485,9 +485,16 @@ class BSMapInfoApp(ctk.CTk):
             self.levels_frame.grid_columnconfigure(i, weight=1)
             self.map_levels.append({"level" : level, "btn" : lvl_btn})
 
+            if max_difficulty <= map.difficulties[level["difficulty"]] and level["characteristic"] == "Standard":
+                max_difficulty = map.difficulties[level["difficulty"]]
+                max_difficulty_index = i
+
+        if max_difficulty == 0:
+            max_difficulty_index = i
+
         self.last_active_sidebar_btn_index = index
 
-        self.load_level(map_index=index, level_index=0)
+        self.load_level(map_index=index, level_index=max_difficulty_index)
         
 
     def clear_frame(self, frame: ctk.CTkFrame | ctk.CTkScrollableFrame):
@@ -502,15 +509,17 @@ class BSMapInfoApp(ctk.CTk):
         self.clear_frame(self.level_info_frame)
         plt.close('all')
 
-        map: InfoSchemaVersionHandler = self.maps[map_index]["map"]
-        level = LevelSchemaVersionHandler(map=map, settings=self.settings, level_index=level_index)
+        map: MapHandler = self.maps[map_index]["map"]
+        level = LevelHandler(map=map, settings=self.settings, level_index=level_index)
 
         # Clear last button active
         if self.last_active_levels_btn_index != -1:
             self.map_levels[self.last_active_levels_btn_index]["btn"].configure(fg_color=self.button_colors[map.levels[self.last_active_levels_btn_index]["difficulty"]])
+            self.map_levels[self.last_active_levels_btn_index]["btn"].configure(border_width=0, border_color="white")
 
         # Set active button color
         self.map_levels[level_index]["btn"].configure(fg_color=self.button_hover_colors[level.difficulty])
+        self.map_levels[level_index]["btn"].configure(border_width=1, border_color="white")
 
         # Set level in label
         map_name_text = f"{map.song_title}"
@@ -519,7 +528,7 @@ class BSMapInfoApp(ctk.CTk):
         map_name_text += f": {level.characteristic} {level.difficulty}"
 
         self.map_name = ctk.CTkLabel(self.level_info_frame, text=map_name_text)
-        self.map_name.grid(row=0, column=0, padx=self.padding * 2, columnspan=7, sticky="w")
+        self.map_name.grid(row=0, column=0, padx=self.padding * 2, sticky="w")
 
         self.last_active_levels_btn_index = level_index
 
@@ -534,30 +543,39 @@ class BSMapInfoApp(ctk.CTk):
         info = {
             "BPM" : map.bpm,
             "NPS Avg" : level.mean_nps,
+            "NPS Median" : level.median,
             "NPS Max" : level.max_nps,
             "NPS Min" : level.min_nps,
             "NJS" : level.njs,
-            "Song duration" : song_duration,
-            "Idle time" : level.idle_time,
+            "Deviation" : level.standard_deviation,
+            "Kurtosis" : level.kurtosis,
+            "Song Length" : song_duration,
+            "Idle Time" : level.idle_time,
         }
 
-        for index, key in enumerate(info.keys()):
-            info_text = ctk.CTkLabel(self.level_info_frame, text=key)
-            info_text.grid(row=1, column=index, padx=self.padding)
+        info_table_frame = ctk.CTkFrame(self.level_info_frame, fg_color="#2b2b2b")
+        info_table_frame.grid(row=1, column=0, padx=7, sticky="ew")
 
-            if key not in ("Song duration", "Idle time"):
+        for index, key in enumerate(info.keys()):
+            item_frame = ctk.CTkFrame(info_table_frame, border_width=2, border_color=self.button_hover_colors["default"])
+            item_frame.grid(row=0, column=index)
+
+            info_text = ctk.CTkLabel(item_frame, text=key, height=18)
+            info_text.pack(padx=3, pady=2)
+
+            if key not in ("Song Length", "Idle Time"):
                 text_value = round(info[key], 2)
             else:
                 text_value = ""
                 text_value += f"{info[key][0]} m " if info[key][0] else ""
                 text_value += f"{info[key][1]} s"
 
-            info_value = ctk.CTkLabel(self.level_info_frame, text=text_value)
-            info_value.grid(row=2, column=index)
+            info_value = ctk.CTkLabel(item_frame, text=text_value, height=18)
+            info_value.pack(padx=3, pady=2)
 
-            self.level_info_frame.grid_columnconfigure(index, weight=1)
+            info_table_frame.grid_columnconfigure(index, weight=1)
 
-        graph_row = 3
+        graph_row = 2
         if level.bad_mapper:
             bad_mapper_text = "On this map notes can be parsed incorrectly! NPS and graph can display incorrect info!"
             self.bad_mapper_label = ctk.CTkLabel(self.level_info_frame, text=bad_mapper_text, padx=self.padding)
@@ -577,8 +595,9 @@ class BSMapInfoApp(ctk.CTk):
         ax.set_ylim(bottom=0)
 
         canvas = FigureCanvasTkAgg(plt.gcf(), master=self.level_info_frame)
-        canvas.get_tk_widget().grid(row=graph_row, column=0, columnspan=7, sticky="nwes")
+        canvas.get_tk_widget().grid(row=graph_row, column=0, sticky="nwes", padx=self.padding, pady=self.padding)
         self.level_info_frame.grid_rowconfigure(graph_row, weight=1)
+        self.level_info_frame.grid_columnconfigure(0, weight=1)
         self.after(100, canvas.draw) # Fix for figure jumping for 1 frame
 
 

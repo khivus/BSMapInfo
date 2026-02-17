@@ -2,11 +2,13 @@ import os
 import json
 import numpy as np
 
-from info_schema_version_handler import InfoSchemaVersionHandler
+from scipy.stats import kurtosis
+
+from map_handler import MapHandler
 from settings_handler import SettingsHandler
 
 
-class LevelSchemaVersionHandler:
+class LevelHandler:
     
     level_major_version: int
     characteristic: str
@@ -24,7 +26,7 @@ class LevelSchemaVersionHandler:
     bad_mapper: bool = False
 
 
-    def __init__(self, map: InfoSchemaVersionHandler, settings: SettingsHandler, level_index: int):
+    def __init__(self, map: MapHandler, settings: SettingsHandler, level_index: int):
 
         self.characteristic = map.levels[level_index]["characteristic"]
         self.difficulty = map.levels[level_index]["difficulty"]
@@ -168,9 +170,16 @@ class LevelSchemaVersionHandler:
         else:
             self.sum_idle = sum(x["duration"] for x in idle_time if x["duration"] > min_idle_time)
 
+        sorted = non_zero
+        sorted.sort()
+        sorted_len = len(sorted)
+        self.median = sorted[sorted_len // 2] if  not sorted_len % 2 else (sorted[sorted_len // 2] + sorted[(sorted_len // 2) + 1]) / 2
+
         self.max_nps = np.max(non_zero)
         self.min_nps = np.min(non_zero)
         self.mean_nps = float(np.mean(non_zero))
+        self.standard_deviation = np.std(non_zero, ddof=1)
+        self.kurtosis = kurtosis(non_zero)
         self.idle_time = self.time_adjust(self.sum_idle)
 
     
