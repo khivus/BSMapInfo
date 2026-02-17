@@ -34,8 +34,12 @@ class LevelHandler:
 
         filepath = os.path.join(map.map_path, map.levels[level_index]["filename"])
 
-        with open(filepath, 'r', encoding="utf-8") as file:
-            self.level_json = json.load(file)
+        try:
+            with open(filepath, 'r', encoding="utf-8") as file:
+                self.level_json = json.load(file)
+        except:
+            self.level_json = {}
+            return
 
         try:
             self.level_major_version = int(self.level_json["version"].split('.')[0])
@@ -90,15 +94,6 @@ class LevelHandler:
                 self.bad_mapper = True
 
         self.notes_in_beats = notes
-
-
-    # def beats_to_seconds(self, bpm: float):
-    #     notes = []
-    #     for note in self.notes_in_beats:
-    #         note_sec = (note["beat"] * 60) / bpm
-    #         notes.append({"beat" : note_sec, "color" : note["color"]})
-        
-    #     self.notes_in_seconds = notes
 
 
     def beats_to_seconds(self, global_bpm: float, regions: list, sample_count: int, song_length: float):

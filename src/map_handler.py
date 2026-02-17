@@ -33,12 +33,17 @@ class MapHandler:
     }
 
 
-    def __init__(self, map_path: str):
+    def __init__(self, map_path):
 
         self.map_path = map_path
         info_file_path = os.path.join(self.map_path, "Info.dat")
-        with open(info_file_path, 'r', encoding="utf-8") as file:
-            self.info_json = json.load(file)
+
+        try:
+            with open(info_file_path, 'r', encoding="utf-8") as file:
+                self.info_json = json.load(file)
+        except:
+            self.info_json = {}
+            return
 
         try:
             self.info_major_version = int(self.info_json["_version"].split('.')[0])

@@ -1,8 +1,13 @@
 import os
 import sys
+import zipfile
+import shutil
+
 import customtkinter as ctk
 import matplotlib.pyplot as plt
 
+from pathlib import Path
+from tkinterdnd2 import DND_FILES, TkinterDnD
 from PIL import Image
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
@@ -11,7 +16,7 @@ from map_handler import MapHandler
 from level_handler import LevelHandler
 
 
-VERSION = "1.0.5"
+VERSION = "1.1.0"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -19,18 +24,17 @@ FULL_APP_NAME = "Beat Saber Map Info"
 
 # python -m PyInstaller --windowed --onefile --icon="icon.ico" src/BSMapInfo.py
 
-
 # TODO: Tooltips
-# TODO: Zip dropbox
+# TODO: Update README
 
 
-class BSMapInfoApp(ctk.CTk):
+class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
     
     def __init__(self) -> None:
         super().__init__()
+        self.TkdndVersion = TkinterDnD._require(self)
 
         ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
         self.title(FULL_APP_NAME)
         self.iconbitmap(sys.executable)
         self.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -47,7 +51,6 @@ class BSMapInfoApp(ctk.CTk):
 
 
     def set_state(self):
-
         self.last_active_sidebar_btn_index = -1
         self.last_active_levels_btn_index = -1
         self.is_map_btn_locked = False
@@ -87,7 +90,6 @@ class BSMapInfoApp(ctk.CTk):
 
 
     def build_ui(self):
-
         # Frames
         # Topbar frame
         self.topbar = ctk.CTkFrame(self, height=40)
@@ -122,22 +124,22 @@ class BSMapInfoApp(ctk.CTk):
         self.sidebar.grid_rowconfigure(2, weight=1)
 
         # Graph frame
-        self.graph_frame = ctk.CTkFrame(self.main_frame)
-        self.graph_frame.grid(row=0,column=1, sticky="nsew")
+        self.map_info_frame = ctk.CTkFrame(self.main_frame)
+        self.map_info_frame.grid(row=0,column=1, sticky="nsew")
 
         self.main_frame.grid_columnconfigure(1, weight=1)
         self.main_frame.grid_rowconfigure(0, weight=1)
 
         # Levels frame
-        self.levels_frame = ctk.CTkFrame(self.graph_frame, height=38)
+        self.levels_frame = ctk.CTkFrame(self.map_info_frame, height=38)
         self.levels_frame.grid(row=0,column=0, sticky="nsew", pady=self.padding, padx=self.padding)
 
         # Level info frame
-        self.level_info_frame = ctk.CTkFrame(self.graph_frame)
+        self.level_info_frame = ctk.CTkFrame(self.map_info_frame)
         self.level_info_frame.grid(row=1,column=0, sticky="nsew", pady=self.padding, padx=self.padding)
 
-        self.graph_frame.grid_columnconfigure(0, weight=1)
-        self.graph_frame.grid_rowconfigure(1, weight=1)
+        self.map_info_frame.grid_columnconfigure(0, weight=1)
+        self.map_info_frame.grid_rowconfigure(1, weight=1)
 
         # Topbar items
         self.same_color_lbl = ctk.CTkLabel(self.topbar, text="Same-color stacks")
@@ -167,10 +169,10 @@ class BSMapInfoApp(ctk.CTk):
         self.update_btn = ctk.CTkButton(self.topbar, text="Update", width=50, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], command=self.update_level_info)
         self.update_btn.pack(side="left", padx=self.padding)
 
-        self.change_dir_btn = ctk.CTkButton(self.topbar, text="Change directory", width=100, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], command=lambda: self.change_target_dir(forced=True))
+        self.change_dir_btn = ctk.CTkButton(self.topbar, text="Change directory", width=80, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], command=lambda: self.change_target_dir(forced=True))
         self.change_dir_btn.pack(side="left", padx=self.padding)
 
-        self.about_btn = ctk.CTkButton(self.topbar, text="About", width=50, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], command=self.show_about)
+        self.about_btn = ctk.CTkButton(self.topbar, text="About", width=25, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], command=lambda: self.show_on_top_window(f"{FULL_APP_NAME}\nVersion {VERSION}\nBy: {AUTHOR}"))
         self.about_btn.pack(side="left", padx=self.padding)
 
         # Search items
@@ -192,6 +194,22 @@ class BSMapInfoApp(ctk.CTk):
 
         self.sort_order = ctk.CTkOptionMenu(self.sort_frame, width=174, fg_color=self.button_colors["default"], button_color=self.button_colors["default"], button_hover_color=self.button_hover_colors["default"], values=list(self.order_variants.keys()), variable=variable, command=self.sort_order_callback)
         self.sort_order.grid(row=0, column=1, padx=self.padding, pady=self.padding)
+
+        # Drag and drop to add song to map dir
+        self.sidebar.drop_target_register(DND_FILES) # type: ignore
+        self.sidebar.dnd_bind('<<Drop>>', self.drop_add_file) # type: ignore
+
+        # Drag and drop zips on level info frame
+        self.map_info_frame.drop_target_register(DND_FILES) # type: ignore
+        self.map_info_frame.dnd_bind('<<Drop>>', self.drop) # type: ignore
+
+        start_info_label = ctk.CTkLabel(self.level_info_frame, text="Select map on the left sidebar to see info about it.")
+        start_info_label.cget("font").configure(size=20)
+        start_info_label.pack(padx=self.padding * 2, pady=self.padding, anchor="w")
+
+        dnd_label = ctk.CTkLabel(self.level_info_frame, text="You can drag and drop any map .zip\non this frame to show it info at any time!\nAnd drop on map list to add song to a map folder!")
+        dnd_label.cget("font").configure(size=26)
+        dnd_label.pack(expand=True)
 
 
     def on_closing(self):
@@ -276,24 +294,63 @@ class BSMapInfoApp(ctk.CTk):
             self.unload_level(map_index=self.last_active_sidebar_btn_index, level_index=self.last_active_levels_btn_index, forced=True)
 
 
-    def show_about(self):
-        self.about_window = ctk.CTkToplevel(self)
-        self.about_window.geometry("190x108")
-        self.about_window.resizable(False, False)
-        self.about_window.title(f"About {APP_NAME}")
+    def drop_add_file(self, event):
+        file_path = event.data.strip("{}")
+        new_dir_name = Path(file_path).stem
+        new_dir_path = Path(self.settings.target_dir) / new_dir_name
+
+        try:
+            with zipfile.ZipFile(file_path, 'r') as archive:
+                new_dir_path.mkdir(parents=True, exist_ok=True)
+                archive.extractall(new_dir_path)
+            
+            self.update_map_list()
+
+        except:
+            self.show_on_top_window("You can add only archives!")
+
+
+    def drop(self, event):
+        file_path = event.data.strip("{}")
+
+        temp_map_dir = self.settings.app_dir / "temp_map"
+        shutil.rmtree(temp_map_dir)
+        temp_map_dir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            with zipfile.ZipFile(file_path, 'r') as archive:
+                archive.extractall(temp_map_dir)
+            
+            self.unload_map(index=-1, custom_dir=temp_map_dir)
+
+        except:
+            self.show_on_top_window("You can add only archives!")
+
+
+    def show_on_top_window(self, text: str):
+        splitted = text.split("\n")
+        max_row_len = 0
+        for row in splitted:
+            if max_row_len < len(row):
+                max_row_len = len(row)
+
+        on_top_win = ctk.CTkToplevel(self)
+        on_top_win.geometry(f"{max_row_len * 8}x{80 + (15 * len(splitted))}")
+        on_top_win.resizable(False, False)
+        on_top_win.title(f"{APP_NAME}")
         
-        self.about_window.transient(self)
-        self.about_window.grab_set()
+        on_top_win.transient(self)
+        on_top_win.grab_set()
 
-        self.about_window.update_idletasks()
-        x = self.winfo_x() + ((self.winfo_width() - self.about_window.winfo_width()) // 2)
-        y = self.winfo_y() + ((self.winfo_height() - self.about_window.winfo_height()) // 2)
-        self.about_window.geometry(f"+{x}+{y}")
+        on_top_win.update_idletasks()
+        x = self.winfo_x() + ((self.winfo_width() - on_top_win.winfo_width()) // 2)
+        y = self.winfo_y() + ((self.winfo_height() - on_top_win.winfo_height()) // 2)
+        on_top_win.geometry(f"+{x}+{y}")
 
-        label = ctk.CTkLabel(self.about_window, text=f"{FULL_APP_NAME}\nVersion {VERSION}\nBy: {AUTHOR}", justify="center")
+        label = ctk.CTkLabel(on_top_win, text=text, justify="center")
         label.pack(expand=True, pady=self.padding)
 
-        close_btn = ctk.CTkButton(self.about_window, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], text="Ok", command=self.about_window.destroy)
+        close_btn = ctk.CTkButton(on_top_win, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], text="Ok", command=on_top_win.destroy)
         close_btn.pack(pady=self.padding)
 
 
@@ -357,7 +414,10 @@ class BSMapInfoApp(ctk.CTk):
         update_ticks = int(list_dir_len / 5)
 
         for index, item in enumerate(self.list_dir):
-            self.add_map_to_list(index, item)
+            returned = self.add_map_to_list(index, item)
+            
+            if returned == -1:
+                break
 
             if progress_bar_enabled and not index % update_ticks:
                 self.progress_bar.set(index / list_dir_len)
@@ -371,9 +431,6 @@ class BSMapInfoApp(ctk.CTk):
             self.progress_bar_label.pack_forget()
             self.progress_bar.pack_forget()
 
-        start_info_label = ctk.CTkLabel(self.level_info_frame, text="Select map on the left sidebar to see info about it.")
-        start_info_label.pack(padx=self.padding * 2, anchor="w")
-
 
     def add_map_to_list(self, index, item):
         dir_path = os.path.join(os.getcwd(), item)
@@ -381,6 +438,10 @@ class BSMapInfoApp(ctk.CTk):
             return
 
         map = MapHandler(map_path=dir_path)
+
+        if not map.info_json:
+            self.after(500, lambda: self.show_on_top_window(f"Can't find 'Info.dat' in folder:\n{dir_path}\nDelete this folder or return correct info file back!"))
+            return -1
 
         map_btn_frame = ctk.CTkFrame(self.maps_list_frame, height=50, fg_color=self.button_colors["default"])
 
@@ -453,8 +514,8 @@ class BSMapInfoApp(ctk.CTk):
         self.is_map_btn_locked = False
 
 
-    def unload_map(self, index: int):
-        if self.last_active_sidebar_btn_index == index or self.is_map_btn_locked:
+    def unload_map(self, index: int, custom_dir = None):
+        if (self.last_active_sidebar_btn_index == index or self.is_map_btn_locked) and not custom_dir:
             return
 
         # lock button for spam protection
@@ -475,14 +536,19 @@ class BSMapInfoApp(ctk.CTk):
         self.levels_frame.update_idletasks()
         self.level_info_frame.update_idletasks()
 
-        self.after(20, lambda: self.load_map(index))
+        self.after(20, lambda: self.load_map(index, custom_dir))
 
 
-    def load_map(self, index: int):
-        # Set active color for selected button
-        self.on_enter(index)
+    def load_map(self, index: int, custom_dir = None):
 
-        map: MapHandler = self.maps[index]["map"]
+        if not custom_dir:
+            # Set active color for selected button
+            self.on_enter(index)
+            map: MapHandler = self.maps[index]["map"]
+
+        else:
+            map = MapHandler(map_path=custom_dir)
+            self.temp_map = map
 
         self.map_levels = []
         max_difficulty_index = 0
@@ -493,7 +559,7 @@ class BSMapInfoApp(ctk.CTk):
             lvl_btn = ctk.CTkButton(
                 self.levels_frame, 
                 text=f"{map.characteristics[level['characteristic']]} {level['difficulty']}",
-                command=lambda li=i  : self.unload_level(map_index=index, level_index=li),
+                command=lambda li=i : self.unload_level(map_index=index, level_index=li, custom_dir=custom_dir),
                 fg_color=self.button_colors[level['difficulty']],
                 hover_color=self.button_hover_colors[level['difficulty']]
             )
@@ -510,7 +576,7 @@ class BSMapInfoApp(ctk.CTk):
 
         self.last_active_sidebar_btn_index = index
 
-        self.unload_level(map_index=index, level_index=max_difficulty_index)
+        self.unload_level(map_index=index, level_index=max_difficulty_index, custom_dir=custom_dir)
         
 
     def clear_frame(self, frame: ctk.CTkFrame | ctk.CTkScrollableFrame):
@@ -519,7 +585,7 @@ class BSMapInfoApp(ctk.CTk):
         frame.update_idletasks()
 
 
-    def unload_level(self, map_index: int, level_index: int, forced = False):
+    def unload_level(self, map_index: int, level_index: int, forced = False, custom_dir = None):
         if self.last_active_levels_btn_index == level_index and not forced:
             return
         
@@ -529,16 +595,24 @@ class BSMapInfoApp(ctk.CTk):
 
         # Clear last button active
         if self.last_active_levels_btn_index != -1:
-            self.map_levels[self.last_active_levels_btn_index]["btn"].configure(fg_color=self.button_colors[self.maps[map_index]["map"].levels[self.last_active_levels_btn_index]["difficulty"]], border_width=0)
+            self.map_levels[self.last_active_levels_btn_index]["btn"].configure(fg_color=self.button_colors[self.map_levels[self.last_active_levels_btn_index]["level"]["difficulty"]], border_width=0)
 
         self.level_info_frame.update_idletasks()
 
-        self.level_info_frame.after(10, lambda: self.load_level(map_index=map_index, level_index=level_index))
+        self.level_info_frame.after(10, lambda: self.load_level(map_index=map_index, level_index=level_index, custom_dir=custom_dir))
 
 
-    def load_level(self, map_index: int, level_index: int):
-        map: MapHandler = self.maps[map_index]["map"]
+    def load_level(self, map_index: int, level_index: int, custom_dir = None):
+        if not custom_dir:
+            map: MapHandler = self.maps[map_index]["map"]
+        else:
+            map = self.temp_map
+
         level = LevelHandler(map=map, settings=self.settings, level_index=level_index)
+
+        if not level.level_json:
+            self.show_on_top_window("Level file dissapeared!\nUpdate maps list if you deleted map!")
+            return
 
         # Set active button color
         self.map_levels[level_index]["btn"].configure(fg_color=self.button_hover_colors[level.difficulty], border_width=1, border_color="white")
@@ -546,7 +620,7 @@ class BSMapInfoApp(ctk.CTk):
         # Set level in label
         map_name_text = f"{map.song_title}"
         map_name_text += f" by {map.song_autor}" if map.song_autor else ""
-        # map_name_text += f" (Mapped by {map.map_autor})" if map.map_autor else ""
+        map_name_text += f" (Mapped by {map.map_autor})" if map.map_autor and len(map_name_text) < 45 else "" # If name is too long just don't print mappers names
         map_name_text += f": {level.characteristic} {level.difficulty}"
 
         self.map_name = ctk.CTkLabel(self.level_info_frame, text=map_name_text)
@@ -617,7 +691,7 @@ class BSMapInfoApp(ctk.CTk):
         ax.set_ylim(bottom=0)
 
         canvas = FigureCanvasTkAgg(plt.gcf(), master=self.level_info_frame)
-        canvas.get_tk_widget().grid(row=graph_row, column=0, sticky="nwes", padx=self.padding, pady=self.padding)
+        canvas.get_tk_widget().grid(row=graph_row, column=0, sticky="nsew", padx=self.padding, pady=self.padding)
         self.level_info_frame.grid_rowconfigure(graph_row, weight=1)
         self.level_info_frame.grid_columnconfigure(0, weight=1)
         self.after(100, canvas.draw) # Fix for figure jumping for 1 frame

@@ -23,9 +23,9 @@ class SettingsHandler:
         if not local_appdata:
             raise RuntimeError("LOCALAPPDATA not found!")
 
-        app_dir = Path(local_appdata) / app_name
-        app_dir.mkdir(parents=True, exist_ok=True)
-        self.settings_file = app_dir / "settings.json"
+        self.app_dir = Path(local_appdata) / app_name
+        self.app_dir.mkdir(parents=True, exist_ok=True)
+        self.settings_file = self.app_dir / "settings.json"
 
         # self.settings_file.unlink()
         
