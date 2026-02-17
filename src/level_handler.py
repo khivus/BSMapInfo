@@ -98,7 +98,7 @@ class LevelHandler:
 
     def beats_to_seconds(self, global_bpm: float, regions: list, sample_count: int, song_length: float):
 
-        if not regions or not sample_count:
+        if not regions or not sample_count or not song_length:
             self.notes_in_seconds = [
                 {
                     "beat": note["beat"] * 60.0 / global_bpm,

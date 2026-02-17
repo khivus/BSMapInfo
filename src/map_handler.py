@@ -90,7 +90,7 @@ class MapHandler:
         self.song_title = self.info_json["song"]["title"]
         self.song_autor = self.info_json["song"]["author"]
         self.map_autor = "" # Very good development team
-        self.song_duration = self.info_json["audio"]["songDuration"]
+        self.song_duration = self.info_json["audio"]["songDuration"] if self.info_json["audio"]["songDuration"] else self._get_song_length()
         self.bpm = self.info_json["audio"]["bpm"]
         self.cover_image_filename = self.info_json["coverImageFilename"]
 
@@ -110,7 +110,11 @@ class MapHandler:
 
 
     def _get_song_length(self):
-        path = os.path.join(self.map_path, self.info_json["_songFilename"])
+        if self.info_major_version == 2:
+            path = os.path.join(self.map_path, self.info_json["_songFilename"])
+        else:
+            path = os.path.join(self.map_path, self.info_json["audio"]["songFilename"])
+
         audio = mutagen.File(path) # type: ignore
         if audio is None or not hasattr(audio, "info"):
             return 0

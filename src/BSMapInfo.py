@@ -16,7 +16,7 @@ from map_handler import MapHandler
 from level_handler import LevelHandler
 
 
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -299,6 +299,10 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         new_dir_name = Path(file_path).stem
         new_dir_path = Path(self.settings.target_dir) / new_dir_name
 
+        if os.path.isdir(new_dir_path):
+            self.show_on_top_window("Map with this name already exists!")
+            return
+
         try:
             with zipfile.ZipFile(file_path, 'r') as archive:
                 new_dir_path.mkdir(parents=True, exist_ok=True)
@@ -307,7 +311,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
             self.update_map_list()
 
         except:
-            self.show_on_top_window("You can add only archives!")
+            self.show_on_top_window("You can add only .zip map archives!")
 
 
     def drop(self, event):
@@ -325,7 +329,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
             self.unload_map(index=-1, custom_dir=temp_map_dir)
 
         except:
-            self.show_on_top_window("You can add only archives!")
+            self.show_on_top_window("You can add only .zip map archives!")
 
 
     def show_on_top_window(self, text: str):
