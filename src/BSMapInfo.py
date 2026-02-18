@@ -184,16 +184,19 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.update_map_list_btn.grid(row=0, column=1, padx=self.padding, pady=self.padding)
 
         # Sort items
+        self.clear_search_entry_btn = ctk.CTkButton(self.sort_frame, text="C", width=28, command=lambda: self.search_var.set(""), fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"])
+        self.clear_search_entry_btn.grid(row=0, column=0, padx=self.padding, pady=self.padding)
+
         self.sort_direction = ctk.CTkButton(self.sort_frame, width=28, fg_color=self.button_colors["default"], hover_color=self.button_hover_colors["default"], text=self.direction_variants[self.settings.sort_direction], command=self.sort_direction_change)
-        self.sort_direction.grid(row=0, column=0, padx=self.padding, pady=self.padding)
+        self.sort_direction.grid(row=0, column=1, padx=self.padding, pady=self.padding)
 
         variable = ctk.StringVar()
         for key, value in self.order_variants.items():
             if value == self.settings.sort_order:
                 variable.set(key)
 
-        self.sort_order = ctk.CTkOptionMenu(self.sort_frame, width=174, fg_color=self.button_colors["default"], button_color=self.button_colors["default"], button_hover_color=self.button_hover_colors["default"], values=list(self.order_variants.keys()), variable=variable, command=self.sort_order_callback)
-        self.sort_order.grid(row=0, column=1, padx=self.padding, pady=self.padding)
+        self.sort_order = ctk.CTkOptionMenu(self.sort_frame, width=136, fg_color=self.button_colors["default"], button_color=self.button_colors["default"], button_hover_color=self.button_hover_colors["default"], values=list(self.order_variants.keys()), variable=variable, command=self.sort_order_callback)
+        self.sort_order.grid(row=0, column=2, padx=self.padding, pady=self.padding)
 
         # Drag and drop to add song to map dir
         self.sidebar.drop_target_register(DND_FILES) # type: ignore
