@@ -24,7 +24,7 @@ FULL_APP_NAME = "Beat Saber Map Info"
 
 
 # python -m PyInstaller --windowed --onefile --icon="icon.ico" src/BSMapInfo.py
-
+# python -m PyInstaller BSMapInfo.spec
 # TODO: Update README
 
 

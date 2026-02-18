@@ -8,5 +8,4 @@ src/__pycache__
 # File types
 *.dat
 *.json
-*.spec
 *.exe
