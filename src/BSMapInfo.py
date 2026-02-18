@@ -3,6 +3,7 @@ import sys
 import zipfile
 import shutil
 
+import tkinter as tk
 import customtkinter as ctk
 import matplotlib.pyplot as plt
 
@@ -16,7 +17,7 @@ from map_handler import MapHandler
 from level_handler import LevelHandler
 
 
-VERSION = "1.1.3"
+VERSION = "1.1.4"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -46,7 +47,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.build_ui()
 
         if self.settings.target_dir:
-            self.load_map_list()
+            self.after(500, self.load_map_list, True)
 
 
     def set_state(self):
@@ -205,6 +206,10 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.map_info_frame.drop_target_register(DND_FILES) # type: ignore
         self.map_info_frame.dnd_bind('<<Drop>>', self.drop) # type: ignore
 
+
+    def display_def_info(self):
+
+
         start_info_label = ctk.CTkLabel(self.level_info_frame, text="Select map on the left sidebar to see info about it.")
         start_info_label.cget("font").configure(size=20)
         start_info_label.pack(padx=self.padding * 2, pady=self.padding, anchor="w")
@@ -248,9 +253,6 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.last_active_levels_btn_index = -1
         self.maps = []
         self.maps_indices = []
-
-        self.progress_bar_label = ctk.CTkLabel(self.level_info_frame, text="Loading maps (0/0)...")
-        self.progress_bar = ctk.CTkProgressBar(self.level_info_frame)
 
         self.load_map_list(True)
 
@@ -409,7 +411,10 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
     def load_map_list(self, progress_bar_enabled = False):
         if progress_bar_enabled:
+            self.progress_bar_label = ctk.CTkLabel(self.level_info_frame, text="Loading maps (0/0)...")
             self.progress_bar_label.pack(padx=self.padding * 2, pady=self.padding, anchor="w")
+
+            self.progress_bar = ctk.CTkProgressBar(self.level_info_frame)
             self.progress_bar.pack(padx=self.padding * 2, fill="x")
             self.progress_bar.set(0)
             self.progress_bar.start()
@@ -419,35 +424,39 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.list_dir = os.listdir()
         list_dir_len = len(self.list_dir)
         update_ticks = int(list_dir_len / 5)
+        index = 0
 
-        for index, item in enumerate(self.list_dir):
+        for item in self.list_dir:
             returned = self.add_map_to_list(index, item)
             
             if returned == -1:
                 break
 
+            index += 1
+
             if progress_bar_enabled and not index % update_ticks:
                 self.progress_bar.set(index / list_dir_len)
                 self.progress_bar_label.configure(text=f"Loading maps ({index}/{list_dir_len})...")
-                self.update()
-
-        self.sort_map_list()
+                self.update_idletasks()
 
         if progress_bar_enabled:
             self.progress_bar.stop()
             self.progress_bar_label.pack_forget()
             self.progress_bar.pack_forget()
 
+        self.display_def_info()
+        self.sort_map_list()
+
 
     def add_map_to_list(self, index, item):
         dir_path = os.path.join(os.getcwd(), item)
         if not os.path.isdir(dir_path):
-            return
+            return -1
 
         map = MapHandler(map_path=dir_path)
 
         if not map.info_json:
-            self.after(500, lambda: self.show_on_top_window(f"Can't find 'Info.dat' in folder:\n{dir_path}\nDelete this folder or change maps folder!"))
+            # self.after(500, lambda: self.show_on_top_window(f"Can't find 'Info.dat' in folder:\n{dir_path}\nDelete this folder or change maps folder!"))
             return -1
 
         map_btn_frame = ctk.CTkFrame(self.maps_list_frame, height=50, fg_color=self.button_colors["default"])
@@ -501,6 +510,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
     def bind_all_children(self, parent, index):
 
         parent.bind("<Button-1>", lambda event, i=index : self.unload_map(i))
+        parent.bind("<Button-3>", lambda event, i=index : self.on_right_click(event, i))
         parent.bind("<Enter>", lambda event, i=index : self.on_enter(i))
         parent.bind("<Leave>", lambda event, i=index : self.on_leave(i))
 
@@ -521,7 +531,19 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.is_map_btn_locked = False
 
 
-    def unload_map(self, index: int, custom_dir = None):
+    def open_map_in_explorer(self, map_index):
+        os.system(f'explorer "{self.maps[map_index]["map"].map_path}"')
+
+
+    def on_right_click(self, event, map_index):
+        context_menu = tk.Menu(self.winfo_toplevel(), tearoff=0, bg=self.button_colors["default"], fg="white", activebackground=self.button_hover_colors["default"], border=0, bd=0, borderwidth=0, relief="flat")
+        context_menu.add_command(label="Open map in explorer", command=lambda: self.open_map_in_explorer(map_index))
+        if map_index == self.last_active_sidebar_btn_index:
+            context_menu.add_command(label="Deselect", command=lambda: self.unload_map(-1, dont_load=True))
+        context_menu.tk_popup(event.x_root, event.y_root)
+
+
+    def unload_map(self, index: int, custom_dir = None, dont_load = False):
         if (self.last_active_sidebar_btn_index == index or self.is_map_btn_locked) and not custom_dir:
             return
 
@@ -538,12 +560,17 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
             self.on_leave(self.last_active_sidebar_btn_index, True)
 
         # Clear level button index
+        self.last_active_sidebar_btn_index = index
         self.last_active_levels_btn_index = -1
 
         self.levels_frame.update_idletasks()
         self.level_info_frame.update_idletasks()
 
-        self.after(20, lambda: self.load_map(index, custom_dir))
+        if dont_load:
+            self.on_leave(index)
+            self.display_def_info()
+        else:
+            self.after(20, lambda: self.load_map(index, custom_dir))
 
 
     def load_map(self, index: int, custom_dir = None):
@@ -581,8 +608,6 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         if max_difficulty == 0:
             max_difficulty_index = i
 
-        self.last_active_sidebar_btn_index = index
-
         self.unload_level(map_index=index, level_index=max_difficulty_index, custom_dir=custom_dir)
         
 
@@ -603,6 +628,8 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         # Clear last button active
         if self.last_active_levels_btn_index != -1:
             self.map_levels[self.last_active_levels_btn_index]["btn"].configure(fg_color=self.button_colors[self.map_levels[self.last_active_levels_btn_index]["level"]["difficulty"]], border_width=0)
+        
+        self.last_active_levels_btn_index = level_index
 
         self.level_info_frame.update_idletasks()
 
@@ -632,8 +659,6 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.map_name = ctk.CTkLabel(self.level_info_frame, text=map_name_text)
         self.map_name.grid(row=0, column=0, padx=self.padding * 2, sticky="w")
-
-        self.last_active_levels_btn_index = level_index
 
         if not level.notes_in_beats:
             error_text = "Can't find notes in map!"

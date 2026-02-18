@@ -125,8 +125,7 @@ class MapHandler:
         self.sample_count = 0
         self.bpm_regions = []
 
-        audio_info = ("BPMInfo.dat", "AudioData.dat")
-        for file_name in audio_info:
+        for file_name in ("BPMInfo.dat", "AudioData.dat"): # Most common audio data file names
             audio_info_file_path = os.path.join(self.map_path, file_name)
             if not os.path.isfile(audio_info_file_path):
                 continue
