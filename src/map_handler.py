@@ -141,25 +141,29 @@ class MapHandler:
 
             bpm_regions = []
 
-            if audio_info_version == 2:
-                self.sample_count = audio_info["_songSampleCount"]
+            try:
+                if audio_info_version == 2:
+                    self.sample_count = audio_info["_songSampleCount"]
 
-                for region in audio_info["_regions"]:
-                    bpm_regions.append({
-                        "start_sample_index" : region["_startSampleIndex"],
-                        "end_sample_index" : region["_endSampleIndex"],
-                        "start_beat" : region["_startBeat"],
-                        "end_beat" : region["_endBeat"]
-                    })
-            else:
-                self.sample_count = audio_info["songSampleCount"]
+                    for region in audio_info["_regions"]:
+                        bpm_regions.append({
+                            "start_sample_index" : region["_startSampleIndex"],
+                            "end_sample_index" : region["_endSampleIndex"],
+                            "start_beat" : region["_startBeat"],
+                            "end_beat" : region["_endBeat"]
+                        })
+                else:
+                    self.sample_count = audio_info["songSampleCount"]
 
-                for region in audio_info["bpmData"]:
-                    bpm_regions.append({
-                        "start_sample_index" : region["si"],
-                        "end_sample_index" : region["ei"],
-                        "start_beat" : region["sb"],
-                        "end_beat" : region["eb"]
-                    })
+                    for region in audio_info["bpmData"]:
+                        bpm_regions.append({
+                            "start_sample_index" : region["si"],
+                            "end_sample_index" : region["ei"],
+                            "start_beat" : region["sb"],
+                            "end_beat" : region["eb"]
+                        })
+            except:
+                self.sample_count = 0
+                bpm_regions = []
 
             self.bpm_regions = bpm_regions

@@ -16,7 +16,7 @@ from map_handler import MapHandler
 from level_handler import LevelHandler
 
 
-VERSION = "1.1.2"
+VERSION = "1.1.3"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -24,7 +24,6 @@ FULL_APP_NAME = "Beat Saber Map Info"
 
 # python -m PyInstaller --windowed --onefile --icon="icon.ico" src/BSMapInfo.py
 
-# TODO: Tooltips
 # TODO: Update README
 
 
@@ -448,7 +447,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         map = MapHandler(map_path=dir_path)
 
         if not map.info_json:
-            self.after(500, lambda: self.show_on_top_window(f"Can't find 'Info.dat' in folder:\n{dir_path}\nDelete this folder or return correct info file back!"))
+            self.after(500, lambda: self.show_on_top_window(f"Can't find 'Info.dat' in folder:\n{dir_path}\nDelete this folder or change maps folder!"))
             return -1
 
         map_btn_frame = ctk.CTkFrame(self.maps_list_frame, height=50, fg_color=self.button_colors["default"])
