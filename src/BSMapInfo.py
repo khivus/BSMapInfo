@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 import zipfile
 import shutil
@@ -17,7 +18,7 @@ from map_handler import MapHandler
 from level_handler import LevelHandler
 
 
-VERSION = "1.1.4"
+VERSION = "1.1.5"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -531,13 +532,9 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.is_map_btn_locked = False
 
 
-    def open_map_in_explorer(self, map_index):
-        os.system(f'explorer "{self.maps[map_index]["map"].map_path}"')
-
-
     def on_right_click(self, event, map_index):
         context_menu = tk.Menu(self.winfo_toplevel(), tearoff=0, bg=self.button_colors["default"], fg="white", activebackground=self.button_hover_colors["default"], border=0, bd=0, borderwidth=0, relief="flat")
-        context_menu.add_command(label="Open map in explorer", command=lambda: self.open_map_in_explorer(map_index))
+        context_menu.add_command(label="Open map in explorer", command=lambda: subprocess.Popen(['explorer', self.maps[map_index]["map"].map_path])) # Works faster and better
         if map_index == self.last_active_sidebar_btn_index:
             context_menu.add_command(label="Deselect", command=lambda: self.unload_map(-1, dont_load=True))
         context_menu.tk_popup(event.x_root, event.y_root)
