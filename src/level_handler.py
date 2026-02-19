@@ -241,7 +241,7 @@ class LevelHandler:
         self.idle_time = self.time_adjust(self.sum_idle)
 
     
-    def time_adjust(self, time) -> list:
+    def time_adjust(self, time) -> list[int]:
         if time >= 60:
             return [round(time // 60), round(time % 60)]
         else:

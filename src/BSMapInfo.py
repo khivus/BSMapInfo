@@ -18,7 +18,7 @@ from map_handler import MapHandler
 from level_handler import LevelHandler
 
 
-VERSION = "1.1.5"
+VERSION = "1.1.6"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -54,6 +54,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
     def set_state(self):
         self.last_active_sidebar_btn_index = -1
         self.last_active_levels_btn_index = -1
+        self.temp_map_dir = ""
         self.is_map_btn_locked = False
         self.maps = []
         self.maps_indices = []
@@ -254,6 +255,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.last_active_levels_btn_index = -1
         self.maps = []
         self.maps_indices = []
+        self.temp_map_dir = ""
 
         self.load_map_list(True)
 
@@ -295,7 +297,8 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.settings.bin_size = bin_size
         self.settings.min_idle_time = min_idle_time
-        if self.last_active_sidebar_btn_index != -1 and self.last_active_levels_btn_index != -1:
+
+        if (self.last_active_sidebar_btn_index != -1 and self.last_active_levels_btn_index != -1) or self.temp_map_dir:
             self.unload_level(map_index=self.last_active_sidebar_btn_index, level_index=self.last_active_levels_btn_index, forced=True)
 
 
@@ -322,16 +325,16 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
     def drop(self, event):
         file_path = event.data.strip("{}")
 
-        temp_map_dir = self.settings.app_dir / "temp_map"
-        if os.path.isdir(temp_map_dir):
-            shutil.rmtree(temp_map_dir)
-        temp_map_dir.mkdir(parents=True, exist_ok=True)
+        self.temp_map_dir = self.settings.app_dir / "temp_map"
+        if os.path.isdir(self.temp_map_dir):
+            shutil.rmtree(self.temp_map_dir)
+        self.temp_map_dir.mkdir(parents=True, exist_ok=True)
 
         try:
             with zipfile.ZipFile(file_path, 'r') as archive:
-                archive.extractall(temp_map_dir)
+                archive.extractall(self.temp_map_dir)
             
-            self.unload_map(index=-1, custom_dir=temp_map_dir)
+            self.unload_map(index=-1, forced=True)
 
         except:
             self.show_on_top_window("You can add only .zip map archives!")
@@ -511,7 +514,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
     def bind_all_children(self, parent, index):
 
         parent.bind("<Button-1>", lambda event, i=index : self.unload_map(i))
-        parent.bind("<Button-3>", lambda event, i=index : self.on_right_click(event, i))
+        parent.bind("<Button-3>", lambda event, i=index : self.on_map_right_click(event, i))
         parent.bind("<Enter>", lambda event, i=index : self.on_enter(i))
         parent.bind("<Leave>", lambda event, i=index : self.on_leave(i))
 
@@ -532,7 +535,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         self.is_map_btn_locked = False
 
 
-    def on_right_click(self, event, map_index):
+    def on_map_right_click(self, event, map_index):
         context_menu = tk.Menu(self.winfo_toplevel(), tearoff=0, bg=self.button_colors["default"], fg="white", activebackground=self.button_hover_colors["default"], border=0, bd=0, borderwidth=0, relief="flat")
         context_menu.add_command(label="Open map in explorer", command=lambda: subprocess.Popen(['explorer', self.maps[map_index]["map"].map_path])) # Works faster and better
         if map_index == self.last_active_sidebar_btn_index:
@@ -540,13 +543,16 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         context_menu.tk_popup(event.x_root, event.y_root)
 
 
-    def unload_map(self, index: int, custom_dir = None, dont_load = False):
-        if (self.last_active_sidebar_btn_index == index or self.is_map_btn_locked) and not custom_dir:
+    def unload_map(self, index: int, forced = False, dont_load = False):
+        if (self.last_active_sidebar_btn_index == index or self.is_map_btn_locked) and not forced:
             return
 
         # lock button for spam protection
         self.is_map_btn_locked = True
         self.after(250, self.unlock_btn)
+
+        if not forced:
+            self.temp_map_dir = ""
 
         # Clear frames
         self.clear_frame(self.levels_frame)
@@ -567,18 +573,18 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
             self.on_leave(index)
             self.display_def_info()
         else:
-            self.after(20, lambda: self.load_map(index, custom_dir))
+            self.after(20, lambda: self.load_map(index))
 
 
-    def load_map(self, index: int, custom_dir = None):
+    def load_map(self, index: int):
 
-        if not custom_dir:
+        if not self.temp_map_dir:
             # Set active color for selected button
             self.on_enter(index)
             map: MapHandler = self.maps[index]["map"]
 
         else:
-            map = MapHandler(map_path=custom_dir)
+            map = MapHandler(map_path=self.temp_map_dir)
             self.temp_map = map
 
         self.map_levels = []
@@ -590,7 +596,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
             lvl_btn = ctk.CTkButton(
                 self.levels_frame, 
                 text=f"{map.characteristics[level['characteristic']]} {level['difficulty']}",
-                command=lambda li=i : self.unload_level(map_index=index, level_index=li, custom_dir=custom_dir),
+                command=lambda li=i : self.unload_level(map_index=index, level_index=li),
                 fg_color=self.button_colors[level['difficulty']],
                 hover_color=self.button_hover_colors[level['difficulty']]
             )
@@ -605,7 +611,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         if max_difficulty == 0:
             max_difficulty_index = i
 
-        self.unload_level(map_index=index, level_index=max_difficulty_index, custom_dir=custom_dir)
+        self.unload_level(map_index=index, level_index=max_difficulty_index)
         
 
     def clear_frame(self, frame: ctk.CTkFrame | ctk.CTkScrollableFrame):
@@ -614,7 +620,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         frame.update_idletasks()
 
 
-    def unload_level(self, map_index: int, level_index: int, forced = False, custom_dir = None):
+    def unload_level(self, map_index: int, level_index: int, forced = False):
         if self.last_active_levels_btn_index == level_index and not forced:
             return
         
@@ -630,11 +636,11 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         self.level_info_frame.update_idletasks()
 
-        self.level_info_frame.after(10, lambda: self.load_level(map_index=map_index, level_index=level_index, custom_dir=custom_dir))
+        self.level_info_frame.after(10, lambda: self.load_level(map_index=map_index, level_index=level_index))
 
 
-    def load_level(self, map_index: int, level_index: int, custom_dir = None):
-        if not custom_dir:
+    def load_level(self, map_index: int, level_index: int):
+        if not self.temp_map_dir:
             map: MapHandler = self.maps[map_index]["map"]
         else:
             map = self.temp_map
@@ -709,7 +715,7 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
         # Graph
         centers = (level.edges[:-1] + level.edges[1:]) / 2
-        plt.plot(centers, level.counts, linewidth=2, color=self.button_colors[level.difficulty])
+        line, = plt.plot(centers, level.counts, linewidth=2, color=self.button_colors[level.difficulty])
 
         ax = plt.gca()
         original_ticks = ax.get_yticks()
@@ -719,11 +725,39 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         ax.set_yticklabels([f'{tick:.2f}' for tick in normalized_ticks])
         ax.set_ylim(bottom=0)
 
+        annot = ax.annotate("", xy=(0,0), xytext=(10,10), textcoords="offset points",
+                   bbox=dict(boxstyle="round,pad=0.3", fc=self.button_colors[level.difficulty], alpha=0.8),
+                   arrowprops=dict(arrowstyle="->", connectionstyle="arc3,rad=0"), color="white")
+        annot.set_visible(False)
+        
+        fig = plt.gcf()
+        fig.canvas.mpl_connect("motion_notify_event", lambda event : hover(event))
+
         canvas = FigureCanvasTkAgg(plt.gcf(), master=self.level_info_frame)
         canvas.get_tk_widget().grid(row=graph_row, column=0, sticky="nsew", padx=self.padding, pady=self.padding)
         self.level_info_frame.grid_rowconfigure(graph_row, weight=1)
         self.level_info_frame.grid_columnconfigure(0, weight=1)
         self.after(100, canvas.draw) # Fix for figure jumping for 1 frame
+
+        def update_annot(line, ind):
+            x_data = line.get_xdata()
+            y_data = line.get_ydata()
+            idx = ind["ind"][0]
+            annot.xy = (x_data[idx], y_data[idx])
+            text = f"NPS: {(y_data[idx] / self.settings.bin_size):.2f}\nTime: {x_data[idx]:.0f} s"
+            annot.set_text(text)
+
+        def hover(event):
+            vis = annot.get_visible()
+            if event.inaxes == ax:
+                cont, ind = line.contains(event)
+                if cont:
+                    update_annot(line, ind)
+                    annot.set_visible(True)
+                    fig.canvas.draw_idle()
+                elif vis:
+                    annot.set_visible(False)
+                    fig.canvas.draw_idle()
 
 
 if __name__ == "__main__":
