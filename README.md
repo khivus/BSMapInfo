@@ -4,67 +4,101 @@ A small desktop utility to browse custom Beat Saber maps and inspect per-level n
 
 (Implemented in `BSMapInfo.py` and schema handlers.)
 
-## Features
+<p align="center">
+<img width="882" height="532" alt="image" src="https://github.com/user-attachments/assets/e664f19a-1f21-4263-9eff-f5e8a85fefe2" />
+</p>
 
-* Browse installed custom maps and select a level to view details and an NPS graph. 
-* Supports multiple `Info`/level schema versions (v2, v3, v4).  
-* Configurable bin size (seconds) for NPS calculation and minimum idle time detection. 
-* Toggle options:
-  * Count stacked notes (notes at the same beat)
-  * Count different-color notes at same beat
-* Shows avg/max/min NPS and total idle time per level. 
+## Features / UI guide
 
-## Using the UI (short)
+### Key interface elements
+* Before using the program, select your custom maps folder. For BSManager users the path is `BSManager\BSInstances\Beat Saber\Beat Saber_Data\CustomLevels`. You can also open current BSInstances folder inside the program with `Cogwheel icon -> Open folder`.
+* Browse installed custom maps on the left sidebar and select a level to view details and an NPS graph.
+* You can drag and drop `.zip` map file onto:
+  * the Level info frame to preview its info,
+  * the Map list to add the map to your currently selected folder.
 
-* Left sidebar: list of maps (cover + basic info). Click a map to expand and view levels. 
-* Top bar controls:
-  * Toggle stacked/different-color counting
-  * Bin size (seconds) entry
-  * Min idle time (seconds) entry
-  * Update button (recalculate for current level)
-  * About program button
-* Level view: NPS graph, BPM, avg/max/min NPS, NJS, total idle time. 
+### Map selection
+* `Search...` entry - Search map by: Song title, Song author, Map author.
+* `Update maps` button - Checks selected folder for added/deleted songs and updates map list.
+* `C` button - Clear search entry field.
+* `⮟ / ⮝` button - Sort map list in ascending/descending order.
+* `Song title / Song author / Map author / Song duration / BPM` selector - Sort map list by selected order.
 
+### Program topbar / settings
+* `Same-color stacks` checkbox - When enabled, stacks of the same color (e.g., two red notes stacked) are counted as a single logical note in the accuracy statistics. When disabled, each physical note is counted individually.
+* `Mixed-color stacks` checbox - When enabled, opposite-color stacks (red+blue pairs) are treated as a single unit in accuracy data. When disabled, each note in such stacks is counted separately.
+* `Precision step (s)` entry - Minimum value is 1. Defines the length of one precision bin in seconds. Smaller values give higher temporal resolution but increase processing time and may worsen graph readability.
+* `Min idle time (s)` entry - Minimum value is 1. Defines the minimum pause length that counts toward the Idle time statistic; pauses shorter than this are treated as continuous play.
+* `Update` button - Updates level info after setting were changed.
+* `Change directory` button - Change your custom map folder and reload map list.
+* `About` button - Shows brief info about program.
+
+### Level information
+* Difficulty buttons (color-coded) select the level difficulty and characteristic:
+  * `Standard` -> `St`
+  * `NoArrows` -> `NA`
+  * `OneSaber` -> `OS`
+  * `Lawless` -> `Ll`
+  * `90Degree` -> `90D`
+  * `360Degree` -> `360D`
+ 
+The program does not detect mods other than those listed above.
+ 
+In main level info window:
+* `<Song title> by <Song author> (Mapped by <Map author>): <Level mode> <Level difficulty>` label - Main level information.
+* Table of level information:
+  * `BPM` - Beats per minute of the song,
+  * `NPS Avg` - Average notes per second,
+  * `NPS Median` - Median of the NPS distribution,
+  * `NPS Max` / `NPS Min` - Maximum / minimum NPS values,
+  * `NJS` - Note jump speed,
+  * `Deviation` - Standard deviation of NPS (higher = more spread),
+  * `Kurtosis` - A measure of tail heaviness / outliers in the NPS distribution (higher = heavy tails and a higher, sharper peak, lower = thin tails and a flatter, lower peak),
+  * `Song length` - Duration of the song,
+  * `Idle time` - Total time where NPS is 0 (pauses shorter than Min idle time (s) are ignored).
+* `Graph` - NPS vs. time graph. You can see what parts of level harder or easier. Also you can hover mouse over graph to see exact information at given time.
+ 
 ## Run program
 
-1. Download `BSMapInfo.exe` from [latest release page](https://github.com/khivus/BSMapInfo/releases/latest).
+1. Download `BSMapInfo.exe` from [latest release page](../.././releases/latest).
 2. Run `BSMapInfo.exe`
 
-When the app first starts it will ask you to select your custom maps folder (the folder that contains individual map directories). The app then scans that folder and populates the left sidebar. 
+On first run the app asks you to select your custom maps folder (the folder containing each map's `Info.dat`). The app then scans that folder and populates the left sidebar.
 
 ## Troubleshooting
 
-* **App crashes on startup**: Ensure `customtkinter`, `matplotlib`, `pillow`, `numpy` are installed and you run on Python 3.8+.
 * **No maps listed**: Point the app at a folder containing Beat Saber custom map subfolders (each map is a directory containing an `Info.dat`). Use the `Change directory` button if the app didn’t prompt automatically. 
-* **Graph shows strange values**: Maps with malformed level JSON can produce incorrect parsing; the app will show a warning for “bad mappers.” 
+* **Graph shows strange values**: Maps with malformed level JSON can produce incorrect parsing; the app will show a warning for "bad mappers". 
 
 **Known behavior / limitations**
 
-* For some “nonstandard” maps the parser may mark `bad_mapper=True` and warn that NPS/graph might be inaccurate - this happens when the expected fields are missing or malformed. 
-* For v4 `Info` files the original map author field may be empty (behavior depends on map metadata). 
+* For some "nonstandard" maps the parser may mark `bad_mapper=True` and warn that NPS/graph might be inaccurate - this happens when the expected fields are missing or malformed.
+* For v4 `Info` files the original map author field don't exist. 
 
 ## Settings & where they are stored
 
 Settings are persisted in the Windows `%LOCALAPPDATA%\BSMapInfo\settings.json` location. The app uses that file to store:
 
-* `target_dir` - path to your custom maps folder
-* `geometry` - window geometry
-* `bin_size` - seconds per NPS bin (integer)
-* `min_idle_time` - minimum idle time to count toward idle total
-* `stacked_counted` - boolean: count stacked notes
-* `different_color_counted` - boolean: count different-color occurrences at same beat
-* `sort_order` / `sort_direction` - sidebar sorting preferences
+* `target_dir` - path to your custom maps folder.
+* `geometry` - window geometry.
+* `bin_size` - seconds per NPS bin `Precision step` setting value (integer).
+* `min_idle_time` - minimum idle time to count toward idle total.
+* `merge_same_color_stacks` - See `Same-color stacks` setting.
+* `merge_mixed_color_stacks` - See `Mixed-color stacks` setting.
+* `sort_order` / `sort_direction` - sidebar sorting preferences.
 
 The settings loader performs a small migration: if keys are missing they are filled with defaults and saved back. See `SettingsHandler` for details. *(Settings handling logic lives alongside the app code.)*
 
 ## Requirements
 
-* Python 3.8+
+* Tested on Python 3.11.9
 * Packages (installable via pip):
   * `customtkinter`
+  * `tkinterdnd2`
   * `matplotlib`
   * `pillow`
   * `numpy`
+  * `scipy`
 
 ## Packaging
 
@@ -74,7 +108,11 @@ A recommended one-file Windows build (example):
 python -m PyInstaller --windowed --onefile --icon="icon.ico" BSMapInfo.py
 ```
 
-(There is a commented example in `BSMapInfo.py` - adjust paths and icon as needed.) 
+You can use `.spec` file:
+
+```bash
+python -m PyInstaller BSMapInfo.spec
+```
 
 ## Schema support / parsing notes
 
