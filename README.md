@@ -2,8 +2,6 @@
 
 A small desktop utility to browse custom Beat Saber maps and inspect per-level note density (NPS) graphs and short stats. It scans a custom maps folder, parses `Info.dat` and beatmap files (v2/v3/v4 schemas), and shows levels, NPS graphs, idle time, and short statistics in a compact GUI built with CustomTkinter.
 
-(Implemented in `BSMapInfo.py` and schema handlers.)
-
 <p align="center">
 <img width="882" height="532" alt="image" src="https://github.com/user-attachments/assets/e664f19a-1f21-4263-9eff-f5e8a85fefe2" />
 </p>
