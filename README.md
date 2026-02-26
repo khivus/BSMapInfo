@@ -120,3 +120,4 @@ python -m PyInstaller BSMapInfo.spec
 ## License
 
 This project is licensed under the terms of the [license](https://github.com/khivus/BSMapInfo/blob/main/LICENSE).
+
