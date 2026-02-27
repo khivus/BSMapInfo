@@ -18,7 +18,7 @@ from map_handler import MapHandler
 from level_handler import LevelHandler
 
 
-VERSION = "1.1.6"
+VERSION = "1.1.7"
 AUTHOR = "Khivus"
 APP_NAME = "BSMapInfo"
 FULL_APP_NAME = "Beat Saber Map Info"
@@ -209,7 +209,9 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
 
 
     def display_def_info(self):
-
+        loaded_maps_lbl = ctk.CTkLabel(self.level_info_frame, text=f"Loaded {len(self.maps)} maps.")
+        loaded_maps_lbl.cget("font").configure(size=20)
+        loaded_maps_lbl.pack(padx=self.padding * 2, pady=self.padding, anchor="w")
 
         start_info_label = ctk.CTkLabel(self.level_info_frame, text="Select map on the left sidebar to see info about it.")
         start_info_label.cget("font").configure(size=20)
@@ -426,14 +428,15 @@ class BSMapInfoApp(ctk.CTk, TkinterDnD.DnDWrapper):
         os.chdir(self.settings.target_dir)
         self.list_dir = os.listdir()
         list_dir_len = len(self.list_dir)
-        update_ticks = int(list_dir_len / 5)
+        update_ticks = int(list_dir_len / 5) if list_dir_len > 4 else list_dir_len
+
         index = 0
 
         for item in self.list_dir:
             returned = self.add_map_to_list(index, item)
             
             if returned == -1:
-                break
+                continue
 
             index += 1
 
