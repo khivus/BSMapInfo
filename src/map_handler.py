@@ -36,7 +36,10 @@ class MapHandler:
     def __init__(self, map_path):
 
         self.map_path = map_path
+
         info_file_path = os.path.join(self.map_path, "Info.dat")
+        if not os.path.isfile(info_file_path):
+            info_file_path = os.path.join(self.map_path, "info.dat")
 
         try:
             with open(info_file_path, 'r', encoding="utf-8") as file:
